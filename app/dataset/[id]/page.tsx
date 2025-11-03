@@ -621,14 +621,7 @@ export default function DatasetPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {(() => {
                       // Define the desired order of columns
-                      let columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'مجموع السلة', 'تاريخ الطلب', 'اسم المنتج'];
-
-                      // Remove 'مجموع السلة' if 'اجمالي الطلب' exists
-                      if (columns.includes('اجمالي الطلب')) {
-                        columnOrder = columnOrder.filter(col => col !== 'مجموع السلة');
-                        // Add 'اجمالي الطلب' in the same position
-                        columnOrder.splice(3, 0, 'اجمالي الطلب');
-                      }
+                      let columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'اجمالي الطلب', 'تاريخ الطلب', 'اسم المنتج'];
 
                       // Filter columns to only include those that exist in the data and match our order
                       const orderedColumns = columnOrder.filter(col => columns.includes(col));
@@ -730,7 +723,18 @@ export default function DatasetPage() {
                                   <option key={val} value={val}>{String(val)}</option>
                                 ))}
                               </select>
-                            ) : skipOperatorDropdown || column === 'مجموع السلة' || column === 'اجمالي الطلب' ? (
+                            ) : column === 'اجمالي الطلب' ? (
+                              <input
+                                type="number"
+                                placeholder={`Filter ${displayName}...`}
+                                value={currentFilter.value || ''}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  [column]: { ...currentFilter, value: e.target.value }
+                                })}
+                                className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                              />
+                            ) : skipOperatorDropdown ? (
                               <input
                                 type="text"
                                 placeholder={`Filter ${displayName}...`}
@@ -1081,77 +1085,220 @@ export default function DatasetPage() {
             )}
 
             {activeTab === 'kpis' && (
-              <div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  {/* Total Records KPI */}
-                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-medium text-blue-300">Total Records</h3>
-                      <Target className="w-5 h-5 text-blue-400" />
-                    </div>
-                    <p className="text-3xl font-bold text-white">{COUNT(filteredRecords.map(r => r.data)).toLocaleString()}</p>
-                    <p className="text-xs text-blue-300 mt-1">Rows in dataset</p>
-                  </div>
-
-                  {/* Numeric Column KPIs */}
-                  {columnStats.filter(stat => stat.type === 'numeric').slice(0, 7).map((stat, idx) => {
-                    const records = filteredRecords.map(r => r.data);
-                    const sum = SUM(records, stat.column);
-                    const avg = AVERAGE(records, stat.column);
-                    const min = MIN(records, stat.column);
-                    const max = MAX(records, stat.column);
-                    const distinct = DISTINCTCOUNT(records, stat.column);
-
-                    const colors = [
-                      { from: 'purple-500', to: 'purple-600', text: 'purple' },
-                      { from: 'green-500', to: 'green-600', text: 'green' },
-                      { from: 'orange-500', to: 'orange-600', text: 'orange' },
-                      { from: 'pink-500', to: 'pink-600', text: 'pink' },
-                      { from: 'cyan-500', to: 'cyan-600', text: 'cyan' },
-                      { from: 'yellow-500', to: 'yellow-600', text: 'yellow' },
-                      { from: 'indigo-500', to: 'indigo-600', text: 'indigo' }
-                    ];
-                    const color = colors[idx % colors.length];
-
-                    return (
-                      <div key={stat.column} className={`bg-gradient-to-br from-${color.from}/20 to-${color.to}/20 border border-${color.from}/30 rounded-xl p-6 shadow-lg`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className={`text-sm font-medium text-${color.text}-300`}>{stat.column}</h3>
-                          <Activity className={`w-5 h-5 text-${color.text}-400`} />
-                        </div>
-                        <div className="space-y-1">
-                          <div>
-                            <p className="text-xs text-gray-400">Sum</p>
-                            <p className="text-xl font-bold text-white">{sum.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-                            <div>
-                              <p className="text-gray-400">Avg</p>
-                              <p className="text-white font-semibold">{avg.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Distinct</p>
-                              <p className="text-white font-semibold">{distinct}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Min</p>
-                              <p className="text-white font-semibold">{min.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Max</p>
-                              <p className="text-white font-semibold">{max.toFixed(2)}</p>
-                            </div>
-                          </div>
-                        </div>
+              <div className="space-y-6">
+                {/* Summary KPIs */}
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <Target className="w-5 h-5 mr-2 text-indigo-400" />
+                    Dataset Overview
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Total Records KPI */}
+                    <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-medium text-blue-300">Total Records</h3>
+                        <Table2 className="w-5 h-5 text-blue-400" />
                       </div>
-                    );
-                  })}
+                      <p className="text-3xl font-bold text-white">{COUNT(filteredRecords.map(r => r.data)).toLocaleString()}</p>
+                      <p className="text-xs text-blue-300 mt-1">
+                        {filteredRecords.length !== dataset.records.length && (
+                          <span>Filtered from {dataset.records.length.toLocaleString()}</span>
+                        )}
+                        {filteredRecords.length === dataset.records.length && (
+                          <span>Total rows in dataset</span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Total Columns */}
+                    <div className="bg-gradient-to-br from-indigo-500/20 to-indigo-600/20 border border-indigo-500/30 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-medium text-indigo-300">Columns</h3>
+                        <Grid3X3 className="w-5 h-5 text-indigo-400" />
+                      </div>
+                      <p className="text-3xl font-bold text-white">{columns.length}</p>
+                      <p className="text-xs text-indigo-300 mt-1">
+                        {columnStats.filter(s => s.type === 'numeric').length} numeric, {columnStats.filter(s => s.type === 'text').length} text
+                      </p>
+                    </div>
+
+                    {/* Data Completeness */}
+                    <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-medium text-green-300">Data Quality</h3>
+                        <Activity className="w-5 h-5 text-green-400" />
+                      </div>
+                      <p className="text-3xl font-bold text-white">
+                        {(() => {
+                          const totalCells = filteredRecords.length * columns.length;
+                          const nullCells = columnStats.reduce((sum, stat) => sum + stat.nullCount, 0);
+                          const completeness = ((totalCells - nullCells) / totalCells * 100);
+                          return completeness.toFixed(1);
+                        })()}%
+                      </p>
+                      <p className="text-xs text-green-300 mt-1">Completeness rate</p>
+                    </div>
+
+                    {/* Unique Values */}
+                    <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-purple-500/30 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-medium text-purple-300">Uniqueness</h3>
+                        <Filter className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <p className="text-3xl font-bold text-white">
+                        {(() => {
+                          const avgUniqueness = columnStats.length > 0
+                            ? columnStats.reduce((sum, stat) => sum + (stat.unique / stat.count), 0) / columnStats.length * 100
+                            : 0;
+                          return avgUniqueness.toFixed(0);
+                        })()}%
+                      </p>
+                      <p className="text-xs text-purple-300 mt-1">Avg unique values</p>
+                    </div>
+                  </div>
                 </div>
 
-                {columnStats.filter(stat => stat.type === 'numeric').length === 0 && (
+                {/* Numeric Column KPIs */}
+                {columnStats.filter(stat => stat.type === 'numeric').length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      <Activity className="w-5 h-5 mr-2 text-indigo-400" />
+                      Numeric Metrics
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {columnStats.filter(stat => stat.type === 'numeric').map((stat, idx) => {
+                        const records = filteredRecords.map(r => r.data);
+                        const sum = SUM(records, stat.column);
+                        const avg = AVERAGE(records, stat.column);
+                        const min = MIN(records, stat.column);
+                        const max = MAX(records, stat.column);
+                        const distinct = DISTINCTCOUNT(records, stat.column);
+
+                        const colors = [
+                          { from: 'purple-500', to: 'purple-600', text: 'purple-300', textBold: 'purple-400', border: 'purple-500' },
+                          { from: 'green-500', to: 'green-600', text: 'green-300', textBold: 'green-400', border: 'green-500' },
+                          { from: 'orange-500', to: 'orange-600', text: 'orange-300', textBold: 'orange-400', border: 'orange-500' },
+                          { from: 'pink-500', to: 'pink-600', text: 'pink-300', textBold: 'pink-400', border: 'pink-500' },
+                          { from: 'cyan-500', to: 'cyan-600', text: 'cyan-300', textBold: 'cyan-400', border: 'cyan-500' },
+                          { from: 'yellow-500', to: 'yellow-600', text: 'yellow-300', textBold: 'yellow-400', border: 'yellow-500' },
+                          { from: 'indigo-500', to: 'indigo-600', text: 'indigo-300', textBold: 'indigo-400', border: 'indigo-500' },
+                          { from: 'red-500', to: 'red-600', text: 'red-300', textBold: 'red-400', border: 'red-500' }
+                        ];
+                        const color = colors[idx % colors.length];
+
+                        return (
+                          <div key={stat.column} className={`bg-gradient-to-br from-${color.from}/20 to-${color.to}/20 border border-${color.border}/30 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all hover:scale-105`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className={`text-sm font-semibold text-${color.text}`}>{stat.column}</h3>
+                              <Activity className={`w-5 h-5 text-${color.textBold}`} />
+                            </div>
+                            <div className="space-y-3">
+                              <div className="border-b border-gray-700/50 pb-2">
+                                <p className="text-xs text-gray-400 mb-1">Total Sum</p>
+                                <p className="text-2xl font-bold text-white">{sum.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="bg-slate-800/50 rounded-lg p-2">
+                                  <p className="text-gray-400 mb-1">Average</p>
+                                  <p className="text-white font-bold">{avg.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+                                </div>
+                                <div className="bg-slate-800/50 rounded-lg p-2">
+                                  <p className="text-gray-400 mb-1">Distinct</p>
+                                  <p className="text-white font-bold">{distinct.toLocaleString()}</p>
+                                </div>
+                                <div className="bg-slate-800/50 rounded-lg p-2">
+                                  <p className="text-gray-400 mb-1">Minimum</p>
+                                  <p className="text-white font-bold">{min.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+                                </div>
+                                <div className="bg-slate-800/50 rounded-lg p-2">
+                                  <p className="text-gray-400 mb-1">Maximum</p>
+                                  <p className="text-white font-bold">{max.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+                                </div>
+                              </div>
+                              {stat.mean && stat.stdDev && (
+                                <div className="bg-slate-800/50 rounded-lg p-2 text-xs">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-gray-400">Std Dev</span>
+                                    <span className="text-white font-bold">{stat.stdDev.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-1">
+                                    <span className="text-gray-400">Variance</span>
+                                    <span className="text-white font-bold">{(stat.stdDev * stat.stdDev).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Text Column KPIs */}
+                {columnStats.filter(stat => stat.type === 'text').length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      <Table2 className="w-5 h-5 mr-2 text-indigo-400" />
+                      Text Column Statistics
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {columnStats.filter(stat => stat.type === 'text').map((stat, idx) => {
+                        const records = filteredRecords.map(r => r.data);
+                        const distinct = DISTINCTCOUNT(records, stat.column);
+                        const uniquenessPercent = (distinct / stat.count * 100).toFixed(1);
+
+                        return (
+                          <div key={stat.column} className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 hover:border-indigo-500/50 transition-colors">
+                            <h4 className="text-sm font-semibold text-indigo-300 mb-3">{stat.column}</h4>
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <p className="text-gray-400 mb-1">Total Values</p>
+                                <p className="text-white font-bold text-lg">{stat.count.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400 mb-1">Unique</p>
+                                <p className="text-white font-bold text-lg">{distinct.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400 mb-1">Null/Empty</p>
+                                <p className="text-white font-bold text-lg">{stat.nullCount.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400 mb-1">Uniqueness</p>
+                                <p className="text-white font-bold text-lg">{uniquenessPercent}%</p>
+                              </div>
+                            </div>
+                            {stat.minLength !== undefined && stat.maxLength !== undefined && (
+                              <div className="mt-3 pt-3 border-t border-slate-700/50">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Min Length</span>
+                                  <span className="text-white font-semibold">{stat.minLength}</span>
+                                </div>
+                                <div className="flex justify-between text-xs mt-1">
+                                  <span className="text-gray-400">Max Length</span>
+                                  <span className="text-white font-semibold">{stat.maxLength}</span>
+                                </div>
+                                {stat.avgLength && (
+                                  <div className="flex justify-between text-xs mt-1">
+                                    <span className="text-gray-400">Avg Length</span>
+                                    <span className="text-white font-semibold">{stat.avgLength.toFixed(1)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {columnStats.filter(stat => stat.type === 'numeric').length === 0 && columnStats.filter(stat => stat.type === 'text').length === 0 && (
                   <div className="text-center py-12">
                     <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-400">No numeric columns found for KPI calculation</p>
+                    <p className="text-gray-400 text-lg font-semibold mb-2">No columns found</p>
+                    <p className="text-gray-500 text-sm">Upload a dataset to see KPI metrics</p>
                   </div>
                 )}
               </div>
