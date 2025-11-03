@@ -14,8 +14,12 @@ Built with Next.js 14, TypeScript, MySQL, and Prisma.
 - **Data Upload**: Upload CSV, XLSX, and XLS files
 - **Automatic Analysis**: Instant statistical summaries on upload
 - **Visualizations**: Interactive charts and graphs using Recharts
-- **Correlation Analysis**: Find relationships between numeric columns
-- **Distribution Analysis**: Analyze data distributions
+- **Advanced Analysis Tools**:
+  - Outlier Detection: Find unusual values using IQR method
+  - Trend Analysis: Identify increasing/decreasing patterns
+  - Data Quality Check: Detect missing values and duplicates
+- **Power BI-Level Features**: DAX-like functions, KPIs, advanced filters
+- **Data Export**: Export to CSV, Excel, SQL, and JSON formats
 - **MySQL Storage**: Persistent storage of datasets and analyses
 
 ## Tech Stack
@@ -188,8 +192,9 @@ This will start both the Next.js app and MySQL database.
    - See column types, counts, means, medians, etc.
 
 3. **Run Analysis:**
-   - Correlation Analysis: Find relationships between columns
-   - Distribution Analysis: See frequency distributions
+   - Outlier Detection: Identify unusual values in your data
+   - Trend Analysis: Discover patterns and trends
+   - Data Quality Check: Find missing and duplicate data
 
 ## Project Structure
 
