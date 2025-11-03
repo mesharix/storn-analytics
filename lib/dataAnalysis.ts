@@ -30,6 +30,16 @@ export function analyzeColumn(data: any[], columnName: string): ColumnStats {
     nullCount: values.length - nonNullValues.length,
   };
 
+  // Rule 1: Check if this is the specific Arabic date column
+  if (columnName === 'تاريخ الطلب') {
+    stats.type = 'date';
+    const lengths = nonNullValues.map(v => String(v).length);
+    stats.minLength = Math.min(...lengths);
+    stats.maxLength = Math.max(...lengths);
+    stats.avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+    return stats;
+  }
+
   // Detect type and calculate stats
   const numericValues = nonNullValues
     .map(v => parseFloat(v))

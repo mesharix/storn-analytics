@@ -76,6 +76,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Apply data transformation rules
+    const saudiPaymentMethods = ['STC Pay', 'تمارا', 'مدى', 'حوالة بنكية'];
+    parsedData = parsedData.map(row => {
+      const transformedRow = { ...row };
+
+      // Rule 2: If payment method is Saudi-based AND both city and country are blank, set defaults
+      const paymentMethod = transformedRow['طريقة الدفع'];
+      const city = transformedRow['المدينة'];
+      const country = transformedRow['الدولة'];
+
+      if (paymentMethod && saudiPaymentMethods.includes(paymentMethod)) {
+        const isCityBlank = !city || city === '' || city === null || city === undefined;
+        const isCountryBlank = !country || country === '' || country === null || country === undefined;
+
+        if (isCityBlank && isCountryBlank) {
+          transformedRow['المدينة'] = 'Riyadh';
+          transformedRow['الدولة'] = 'Saudi Arabia';
+        }
+      }
+
+      return transformedRow;
+    });
+
     // Analyze the dataset
     const analysis = analyzeDataset(parsedData);
 
