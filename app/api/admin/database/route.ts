@@ -14,7 +14,7 @@ export async function GET() {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        uploadedAt: 'desc',
       },
     });
 
@@ -52,8 +52,7 @@ export async function GET() {
         columnCount: d.columnCount,
         recordsInDB: d._count.records,
         analysesCount: d._count.analyses,
-        createdAt: d.createdAt,
-        updatedAt: d.updatedAt,
+        uploadedAt: d.uploadedAt,
       })),
       recentAnalyses: recentAnalyses.map(a => ({
         id: a.id,
