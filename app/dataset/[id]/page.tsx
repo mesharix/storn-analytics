@@ -586,15 +586,22 @@ export default function DatasetPage() {
                     <h3 className="text-lg font-semibold text-white">Advanced Filters</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {columns.slice(0, 6).map(column => {
-                      const uniqueValues = getUniqueValues(dataset.records.map(r => r.data), column);
-                      const currentFilter = filters[column] || { operator: 'equals', value: '' };
+                    {(() => {
+                      // Define the desired order of columns
+                      const columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'اجمالي الطلب', 'تاريخ الطلب', 'اسماء المنتجات مع SKU'];
 
-                      // Check if this column should skip the operator dropdown
-                      const skipOperatorDropdown = ['الدولة', 'اسماء المنتجات مع SKU', 'طريقة الدفع', 'المدينة'].includes(column);
+                      // Filter columns to only include those that exist in the data and match our order
+                      const orderedColumns = columnOrder.filter(col => columns.includes(col));
 
-                      // Map column display names
-                      const displayName = column === 'الضريبة' ? 'اسماء المنتجات مع SKU' : column;
+                      return orderedColumns.map(column => {
+                        const uniqueValues = getUniqueValues(dataset.records.map(r => r.data), column);
+                        const currentFilter = filters[column] || { operator: 'equals', value: '' };
+
+                        // Check if this column should skip the operator dropdown
+                        const skipOperatorDropdown = ['الدولة', 'اسماء المنتجات مع SKU', 'طريقة الدفع', 'المدينة'].includes(column);
+
+                        // Map column display names
+                        const displayName = column === 'الضريبة' ? 'اسماء المنتجات مع SKU' : column;
 
                       return (
                         <div key={column} className="bg-slate-900/50 p-3 rounded-lg">
@@ -680,7 +687,8 @@ export default function DatasetPage() {
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                   {Object.values(filters).some(v => v?.value) && (
                     <button
