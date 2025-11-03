@@ -34,11 +34,99 @@ export async function POST(request: NextRequest) {
     let analysisName = '';
 
     switch (analysisType) {
-      case 'correlation':
-        analysisName = 'Correlation Analysis';
-        results = {
-          correlations: findCorrelations(data, 0.3), // Lower threshold to show more relationships
-        };
+      case 'outliers':
+        analysisName = 'Outlier Detection';
+        // Detect outliers using IQR method
+        if (data.length > 0) {
+          const columns = Object.keys(data[0] as Record<string, any>);
+          const outliers: any = {};
+
+          columns.forEach(col => {
+            const values = data.map(row => parseFloat((row as any)[col])).filter(v => !isNaN(v));
+
+            if (values.length > 0) {
+              values.sort((a, b) => a - b);
+              const q1Index = Math.floor(values.length * 0.25);
+              const q3Index = Math.floor(values.length * 0.75);
+              const q1 = values[q1Index];
+              const q3 = values[q3Index];
+              const iqr = q3 - q1;
+              const lowerBound = q1 - 1.5 * iqr;
+              const upperBound = q3 + 1.5 * iqr;
+
+              const outlierValues = data
+                .map((row, idx) => ({ value: parseFloat((row as any)[col]), rowIndex: idx }))
+                .filter(item => !isNaN(item.value) && (item.value < lowerBound || item.value > upperBound))
+                .slice(0, 10);
+
+              if (outlierValues.length > 0) {
+                outliers[col] = {
+                  count: outlierValues.length,
+                  lowerBound: lowerBound.toFixed(2),
+                  upperBound: upperBound.toFixed(2),
+                  samples: outlierValues.map(o => o.value.toFixed(2)),
+                };
+              }
+            }
+          });
+
+          results = { outliers, totalColumns: Object.keys(outliers).length };
+        }
+        break;
+
+      case 'trends':
+        analysisName = 'Trend Analysis';
+        // Analyze trends in numeric columns
+        if (data.length > 5) {
+          const columns = Object.keys(data[0] as Record<string, any>);
+          const trends: any = {};
+
+          columns.forEach(col => {
+            const values = data.map(row => parseFloat((row as any)[col])).filter(v => !isNaN(v));
+
+            if (values.length > 5) {
+              const firstHalf = values.slice(0, Math.floor(values.length / 2));
+              const secondHalf = values.slice(Math.floor(values.length / 2));
+              const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+              const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+              const change = ((secondAvg - firstAvg) / firstAvg) * 100;
+
+              trends[col] = {
+                direction: change > 5 ? 'increasing' : change < -5 ? 'decreasing' : 'stable',
+                change: change.toFixed(2) + '%',
+                firstAvg: firstAvg.toFixed(2),
+                secondAvg: secondAvg.toFixed(2),
+              };
+            }
+          });
+
+          results = { trends };
+        }
+        break;
+
+      case 'quality':
+        analysisName = 'Data Quality Check';
+        // Check for missing values and duplicates
+        if (data.length > 0) {
+          const columns = Object.keys(data[0] as Record<string, any>);
+          const quality: any = {};
+
+          columns.forEach(col => {
+            const values = data.map(row => (row as any)[col]);
+            const nullCount = values.filter(v => v === null || v === undefined || v === '').length;
+            const uniqueCount = new Set(values).size;
+
+            quality[col] = {
+              total: values.length,
+              missing: nullCount,
+              missingPercent: ((nullCount / values.length) * 100).toFixed(2) + '%',
+              unique: uniqueCount,
+              duplicates: values.length - uniqueCount,
+            };
+          });
+
+          results = { quality, totalRows: data.length };
+        }
         break;
 
       case 'summary':
@@ -47,38 +135,6 @@ export async function POST(request: NextRequest) {
         results = {
           columnStats: summary.columnStats,
         };
-        break;
-
-      case 'distribution':
-        analysisName = 'Distribution Analysis';
-        // Get frequency distributions for each column
-        if (data.length > 0) {
-          const columns = Object.keys(data[0] as Record<string, any>);
-          const distributions: any = {};
-
-          columns.forEach(col => {
-            const values = data.map(row => (row as any)[col]);
-            const freq: Record<string, number> = {};
-
-            values.forEach(val => {
-              const key = String(val);
-              freq[key] = (freq[key] || 0) + 1;
-            });
-
-            // Get top 20 most frequent values
-            const sorted = Object.entries(freq)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 20);
-
-            distributions[col] = sorted.map(([value, count]) => ({
-              value,
-              count,
-              percentage: ((count / values.length) * 100).toFixed(2),
-            }));
-          });
-
-          results = { distributions };
-        }
         break;
 
       default:

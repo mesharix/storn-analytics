@@ -83,7 +83,7 @@ export default function DatasetPage() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'correlations' | 'charts' | 'kpis' | 'distribution'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'insights' | 'charts' | 'kpis'>('data');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'scatter' | 'treemap'>('bar');
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
@@ -488,19 +488,19 @@ export default function DatasetPage() {
             </div>
             <span className="gradient-text">Run Advanced Analysis</span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <button
-              onClick={() => runAnalysis('correlation')}
+              onClick={() => runAnalysis('outliers')}
               disabled={analyzing}
               className="button-hover group relative px-8 py-6 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl shadow-lg shadow-indigo-500/40 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none transition-all transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
             >
               <div className="relative z-10 flex items-start">
                 <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
-                  <TrendingUp className="w-7 h-7" />
+                  <Target className="w-7 h-7" />
                 </div>
                 <div className="text-left flex-1">
-                  <div className="font-black text-xl mb-1">Correlation Analysis</div>
-                  <div className="text-sm text-indigo-100 font-medium">Find relationships between variables</div>
+                  <div className="font-black text-xl mb-1">Outlier Detection</div>
+                  <div className="text-sm text-indigo-100 font-medium">Find unusual values in your data</div>
                 </div>
               </div>
               {analyzing && (
@@ -510,17 +510,37 @@ export default function DatasetPage() {
               )}
             </button>
             <button
-              onClick={() => runAnalysis('distribution')}
+              onClick={() => runAnalysis('trends')}
               disabled={analyzing}
               className="button-hover group relative px-8 py-6 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 text-white rounded-2xl hover:shadow-2xl shadow-lg shadow-green-500/40 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none transition-all transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
             >
               <div className="relative z-10 flex items-start">
                 <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
-                  <BarChart3 className="w-7 h-7" />
+                  <TrendingUp className="w-7 h-7" />
                 </div>
                 <div className="text-left flex-1">
-                  <div className="font-black text-xl mb-1">Distribution Analysis</div>
-                  <div className="text-sm text-green-100 font-medium">Analyze data distribution patterns</div>
+                  <div className="font-black text-xl mb-1">Trend Analysis</div>
+                  <div className="text-sm text-green-100 font-medium">Identify patterns and trends</div>
+                </div>
+              </div>
+              {analyzing && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                </div>
+              )}
+            </button>
+            <button
+              onClick={() => runAnalysis('quality')}
+              disabled={analyzing}
+              className="button-hover group relative px-8 py-6 bg-gradient-to-br from-orange-500 via-red-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl shadow-lg shadow-orange-500/40 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none transition-all transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
+            >
+              <div className="relative z-10 flex items-start">
+                <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
+                  <Activity className="w-7 h-7" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-black text-xl mb-1">Data Quality Check</div>
+                  <div className="text-sm text-orange-100 font-medium">Check for missing and duplicate data</div>
                 </div>
               </div>
               {analyzing && (
@@ -579,16 +599,16 @@ export default function DatasetPage() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('correlations')}
+                onClick={() => setActiveTab('insights')}
                 className={`px-8 py-5 font-bold text-sm transition-all relative ${
-                  activeTab === 'correlations'
+                  activeTab === 'insights'
                     ? 'text-indigo-400'
                     : 'text-gray-400 hover:text-gray-300 hover:bg-slate-700/30'
                 }`}
               >
                 <TrendingUp className="w-5 h-5 inline mr-2" />
-                Correlations
-                {activeTab === 'correlations' && (
+                Insights
+                {activeTab === 'insights' && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
                 )}
               </button>
@@ -603,20 +623,6 @@ export default function DatasetPage() {
                 <Activity className="w-5 h-5 inline mr-2" />
                 KPIs
                 {activeTab === 'kpis' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('distribution')}
-                className={`px-8 py-5 font-bold text-sm transition-all relative ${
-                  activeTab === 'distribution'
-                    ? 'text-indigo-400'
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-slate-700/30'
-                }`}
-              >
-                <BarChart3 className="w-5 h-5 inline mr-2" />
-                Distribution
-                {activeTab === 'distribution' && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
                 )}
               </button>
@@ -904,59 +910,20 @@ export default function DatasetPage() {
               </div>
             )}
 
-            {activeTab === 'correlations' && (
-              <div>
-                {correlationAnalysis ? (
-                  <div className="space-y-4">
-                    {correlationAnalysis.results.correlations.map((corr: any, idx: number) => (
-                      <div key={idx} className="border border-indigo-500/20 bg-slate-800/30 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-white">
-                              {corr.column1} ↔ {corr.column2}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold" style={{
-                              color: corr.correlation > 0 ? '#4ade80' : '#f87171'
-                            }}>
-                              {corr.correlation.toFixed(3)}
-                            </p>
-                            <p className="text-sm text-gray-400">correlation</p>
-                          </div>
-                        </div>
-                        <div className="mt-2">
-                          <div className="w-full bg-slate-700 rounded-full h-2">
-                            <div
-                              className="h-2 rounded-full shadow-lg"
-                              style={{
-                                width: `${Math.abs(corr.correlation) * 100}%`,
-                                backgroundColor: corr.correlation > 0 ? '#4ade80' : '#f87171',
-                                boxShadow: corr.correlation > 0 ? '0 0 10px #4ade80' : '0 0 10px #f87171',
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {correlationAnalysis.results.correlations.length === 0 && (
-                      <p className="text-gray-400 text-center py-8">
-                        No significant correlations found (threshold: 0.3 or higher)
-                      </p>
-                    )}
+            {activeTab === 'insights' && (
+              <div className="space-y-6">
+                <p className="text-gray-300 text-center">Run analysis above to view insights about your data: Outlier Detection, Trend Analysis, or Data Quality Check</p>
+                {dataset.analyses.filter(a => ['outliers', 'trends', 'quality'].includes(a.type)).map((analysis) => (
+                  <div key={analysis.id} className="border border-indigo-500/20 bg-slate-800/30 rounded-xl p-6">
+                    <h3 className="text-2xl font-bold text-white mb-4">{analysis.name}</h3>
+                    <div className="text-sm text-gray-400 mb-4">
+                      {new Date(analysis.createdAt).toLocaleString()}
+                    </div>
+                    <pre className="bg-slate-900/50 p-4 rounded-lg text-gray-300 overflow-x-auto text-sm">
+                      {JSON.stringify(analysis.results, null, 2)}
+                    </pre>
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-400 mb-4">No correlation analysis yet</p>
-                    <button
-                      onClick={() => runAnalysis('correlation')}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/40"
-                    >
-                      Run Correlation Analysis
-                    </button>
-                  </div>
-                )}
+                ))}
               </div>
             )}
 
@@ -1037,135 +1004,6 @@ export default function DatasetPage() {
               </div>
             )}
 
-            {activeTab === 'distribution' && (
-              <div>
-                {dataset.analyses.find(a => a.type === 'distribution') ? (
-                  <div>
-                    {(() => {
-                      const distributionAnalysis = dataset.analyses.find(a => a.type === 'distribution');
-                      if (!distributionAnalysis) return null;
-
-                      const distributions = distributionAnalysis.results.distributions;
-                      const columnNames = Object.keys(distributions);
-
-                      return (
-                        <div className="space-y-6">
-                          {columnNames.map(columnName => {
-                            const dist = distributions[columnName];
-                            const isNumeric = columnStats.find(s => s.column === columnName)?.type === 'numeric';
-
-                            return (
-                              <div key={columnName} className="border border-indigo-500/20 bg-slate-800/30 rounded-lg p-6">
-                                <h3 className="text-xl font-bold text-white mb-4">
-                                  {columnName}
-                                  <span className="ml-3 text-sm font-normal text-gray-400">
-                                    ({isNumeric ? 'Numeric' : 'Categorical'})
-                                  </span>
-                                </h3>
-
-                                {/* Distribution Chart */}
-                                <div className="bg-slate-900/50 rounded-lg p-4 mb-4">
-                                  <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={dist.slice(0, 15)}>
-                                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                                      <XAxis
-                                        dataKey="value"
-                                        stroke="#9ca3af"
-                                        angle={-45}
-                                        textAnchor="end"
-                                        height={80}
-                                      />
-                                      <YAxis stroke="#9ca3af" />
-                                      <Tooltip
-                                        contentStyle={{
-                                          backgroundColor: '#1e293b',
-                                          border: '1px solid #4f46e5',
-                                          borderRadius: '8px'
-                                        }}
-                                        content={({ active, payload }) => {
-                                          if (active && payload && payload.length) {
-                                            return (
-                                              <div className="bg-slate-800 border border-indigo-500 rounded-lg p-3">
-                                                <p className="text-white font-semibold">{payload[0].payload.value}</p>
-                                                <p className="text-indigo-300">Count: {payload[0].payload.count}</p>
-                                                <p className="text-green-300">Percentage: {payload[0].payload.percentage}%</p>
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        }}
-                                      />
-                                      <Bar dataKey="count" fill="#6366f1">
-                                        {dist.slice(0, 15).map((entry: any, index: number) => (
-                                          <Cell
-                                            key={`cell-${index}`}
-                                            fill={CHART_COLORS[index % CHART_COLORS.length]}
-                                          />
-                                        ))}
-                                      </Bar>
-                                    </BarChart>
-                                  </ResponsiveContainer>
-                                </div>
-
-                                {/* Frequency Table */}
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-full divide-y divide-indigo-500/20">
-                                    <thead className="bg-slate-800/50">
-                                      <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-indigo-300 uppercase">Value</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-indigo-300 uppercase">Count</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-indigo-300 uppercase">Percentage</th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-indigo-300 uppercase">Bar</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-indigo-500/10">
-                                      {dist.slice(0, 20).map((item: any, idx: number) => (
-                                        <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
-                                          <td className="px-4 py-2 text-sm text-white font-medium">{item.value}</td>
-                                          <td className="px-4 py-2 text-sm text-gray-300">{item.count.toLocaleString()}</td>
-                                          <td className="px-4 py-2 text-sm text-gray-300">{item.percentage}%</td>
-                                          <td className="px-4 py-2">
-                                            <div className="w-full bg-slate-700 rounded-full h-2">
-                                              <div
-                                                className="h-2 rounded-full"
-                                                style={{
-                                                  width: `${item.percentage}%`,
-                                                  backgroundColor: CHART_COLORS[idx % CHART_COLORS.length]
-                                                }}
-                                              />
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                  {dist.length > 20 && (
-                                    <p className="text-xs text-gray-400 mt-3">
-                                      Showing top 20 of {dist.length} unique values
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-400 mb-4">No distribution analysis yet</p>
-                    <button
-                      onClick={() => runAnalysis('distribution')}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/40"
-                    >
-                      Run Distribution Analysis
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </main>
