@@ -29,9 +29,15 @@ export default function Home() {
     try {
       const res = await fetch('/api/datasets');
       const data = await res.json();
-      setDatasets(data);
+      if (Array.isArray(data)) {
+        setDatasets(data);
+      } else {
+        console.error('Invalid response:', data);
+        setDatasets([]);
+      }
     } catch (error) {
       console.error('Error fetching datasets:', error);
+      setDatasets([]);
     } finally {
       setLoading(false);
     }

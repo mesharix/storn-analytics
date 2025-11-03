@@ -6,6 +6,9 @@ const nextConfig = {
     },
   },
   output: 'standalone',
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./node_modules/@prisma/client/**/*', './node_modules/.prisma/**/*'],
+  },
 }
 
 module.exports = nextConfig
