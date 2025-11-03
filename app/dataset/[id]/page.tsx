@@ -632,6 +632,17 @@ export default function DatasetPage() {
                                   className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
                                 />
                               </div>
+                            ) : column === 'مجموع السلة' ? (
+                              <input
+                                type="text"
+                                placeholder={`Filter ${column}...`}
+                                value={currentFilter.value || ''}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  [column]: { ...currentFilter, value: e.target.value }
+                                })}
+                                className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                              />
                             ) : uniqueValues.length <= 50 ? (
                               <select
                                 value={currentFilter.value || ''}
