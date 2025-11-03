@@ -588,7 +588,7 @@ export default function DatasetPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {(() => {
                       // Define the desired order of columns
-                      const columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'اجمالي الطلب', 'تاريخ الطلب', 'اسماء المنتجات مع SKU'];
+                      const columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'مجموع السلة', 'تاريخ الطلب', 'اسماء المنتجات مع SKU'];
 
                       // Filter columns to only include those that exist in the data and match our order
                       const orderedColumns = columnOrder.filter(col => columns.includes(col));
@@ -599,6 +599,9 @@ export default function DatasetPage() {
 
                         // Check if this column should skip the operator dropdown
                         const skipOperatorDropdown = ['الدولة', 'اسماء المنتجات مع SKU', 'طريقة الدفع', 'المدينة'].includes(column);
+
+                        // First 3 columns should only show dropdown (no search input)
+                        const dropdownOnly = ['الدولة', 'المدينة', 'طريقة الدفع'].includes(column);
 
                         // Map column display names
                         const displayName = column === 'الضريبة' ? 'اسماء المنتجات مع SKU' : column;
@@ -647,6 +650,20 @@ export default function DatasetPage() {
                                   className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
                                 />
                               </div>
+                            ) : dropdownOnly ? (
+                              <select
+                                value={currentFilter.value || ''}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  [column]: { ...currentFilter, value: e.target.value }
+                                })}
+                                className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value="">All Values</option>
+                                {uniqueValues.slice(0, 50).map((val: any) => (
+                                  <option key={val} value={val}>{String(val)}</option>
+                                ))}
+                              </select>
                             ) : skipOperatorDropdown || column === 'مجموع السلة' ? (
                               <input
                                 type="text"
