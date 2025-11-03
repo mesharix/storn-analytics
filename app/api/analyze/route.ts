@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { findCorrelations, analyzeDataset } from '@/lib/dataAnalysis';
+import {
+  detectEcommerceColumns,
+  calculateRevenueMetrics,
+  calculateRevenueTrends,
+  analyzeProductPerformance,
+  performRFMAnalysis,
+  analyzeCustomerMetrics,
+  performCohortAnalysis,
+  forecastRevenue,
+} from '@/lib/ecommerceAnalysis';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { datasetId, analysisType } = body;
+    const { datasetId, analysisType, columns } = body;
 
-    console.log('Analysis request:', { datasetId, analysisType });
+    console.log('Analysis request:', { datasetId, analysisType, columns });
 
     if (!datasetId) {
       return NextResponse.json(
@@ -37,11 +47,110 @@ export async function POST(request: NextRequest) {
     let results: any = {};
     let analysisName = '';
 
+    // Auto-detect e-commerce columns if not provided
+    const detectedColumns = columns || detectEcommerceColumns(data) || {};
+
     switch (analysisType) {
+      // ===== E-COMMERCE ANALYSES =====
+      case 'ecommerce-revenue':
+        analysisName = 'Revenue Analytics';
+        console.log('Running revenue analytics...');
+        if (data.length > 0 && detectedColumns.revenueColumn && detectedColumns.dateColumn) {
+          const revenueMetrics = calculateRevenueMetrics(data, detectedColumns.revenueColumn, detectedColumns.dateColumn);
+          const revenueTrends = calculateRevenueTrends(data, detectedColumns.revenueColumn, detectedColumns.dateColumn);
+          results = {
+            metrics: revenueMetrics,
+            trends: revenueTrends,
+            detectedColumns,
+          };
+        } else {
+          results = { error: 'Could not detect revenue or date columns. Please ensure your data has columns like "revenue", "total", "amount" and "date".' };
+        }
+        break;
+
+      case 'ecommerce-products':
+        analysisName = 'Product Performance';
+        console.log('Running product performance analysis...');
+        if (data.length > 0 && detectedColumns.productColumn && detectedColumns.revenueColumn) {
+          const productPerformance = analyzeProductPerformance(
+            data,
+            detectedColumns.productColumn,
+            detectedColumns.revenueColumn,
+            detectedColumns.quantityColumn
+          );
+          results = { ...productPerformance, detectedColumns };
+        } else {
+          results = { error: 'Could not detect product or revenue columns. Please ensure your data has columns like "product", "item" and "revenue", "total".' };
+        }
+        break;
+
+      case 'ecommerce-rfm':
+        analysisName = 'RFM Customer Segmentation';
+        console.log('Running RFM analysis...');
+        if (data.length > 0 && detectedColumns.customerColumn && detectedColumns.dateColumn && detectedColumns.revenueColumn) {
+          const rfmResults = performRFMAnalysis(
+            data,
+            detectedColumns.customerColumn,
+            detectedColumns.dateColumn,
+            detectedColumns.revenueColumn
+          );
+          results = { ...rfmResults, detectedColumns };
+        } else {
+          results = { error: 'Could not detect customer, date, or revenue columns. Please ensure your data has columns like "customer", "date", and "revenue".' };
+        }
+        break;
+
+      case 'ecommerce-customers':
+        analysisName = 'Customer Analytics';
+        console.log('Running customer analytics...');
+        if (data.length > 0 && detectedColumns.customerColumn && detectedColumns.revenueColumn) {
+          const customerMetrics = analyzeCustomerMetrics(
+            data,
+            detectedColumns.customerColumn,
+            detectedColumns.revenueColumn
+          );
+          results = { ...customerMetrics, detectedColumns };
+        } else {
+          results = { error: 'Could not detect customer or revenue columns.' };
+        }
+        break;
+
+      case 'ecommerce-cohorts':
+        analysisName = 'Cohort Analysis';
+        console.log('Running cohort analysis...');
+        if (data.length > 0 && detectedColumns.customerColumn && detectedColumns.dateColumn && detectedColumns.revenueColumn) {
+          const cohortResults = performCohortAnalysis(
+            data,
+            detectedColumns.customerColumn,
+            detectedColumns.dateColumn,
+            detectedColumns.revenueColumn
+          );
+          results = { ...cohortResults, detectedColumns };
+        } else {
+          results = { error: 'Could not detect customer, date, or revenue columns.' };
+        }
+        break;
+
+      case 'ecommerce-forecast':
+        analysisName = 'Revenue Forecast';
+        console.log('Running revenue forecasting...');
+        if (data.length > 0 && detectedColumns.dateColumn && detectedColumns.revenueColumn) {
+          const forecastResults = forecastRevenue(
+            data,
+            detectedColumns.dateColumn,
+            detectedColumns.revenueColumn,
+            30 // 30 days ahead
+          );
+          results = { ...forecastResults, detectedColumns };
+        } else {
+          results = { error: 'Could not detect date or revenue columns.' };
+        }
+        break;
+
+      // ===== LEGACY ANALYSES (Keep for backward compatibility) =====
       case 'outliers':
         analysisName = 'Outlier Detection';
         console.log('Running outlier detection...');
-        // Detect outliers using IQR method
         if (data.length > 0) {
           const columns = Object.keys(data[0] as Record<string, any>);
           const outliers: any = {};
@@ -83,7 +192,6 @@ export async function POST(request: NextRequest) {
       case 'trends':
         analysisName = 'Trend Analysis';
         console.log('Running trend analysis...');
-        // Analyze trends in numeric columns
         if (data.length > 5) {
           const columns = Object.keys(data[0] as Record<string, any>);
           const trends: any = {};
@@ -117,7 +225,6 @@ export async function POST(request: NextRequest) {
       case 'quality':
         analysisName = 'Data Quality Check';
         console.log('Running data quality check...');
-        // Check for missing values and duplicates
         if (data.length > 0) {
           const columns = Object.keys(data[0] as Record<string, any>);
           const quality: any = {};

@@ -41,6 +41,8 @@ import {
   DISTINCTCOUNT,
   FilterCondition
 } from '@/lib/powerbi-analytics';
+import { EcommerceAnalysisButtons } from '@/components/EcommerceAnalysisButtons';
+import { EcommerceInsights } from '@/components/EcommerceInsights';
 
 interface ColumnStat {
   column: string;
@@ -494,77 +496,8 @@ export default function DatasetPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Analysis Actions */}
-        <div className="glass-dark rounded-3xl p-10 mb-10 glow-purple">
-          <h2 className="text-3xl font-black text-white mb-8 flex items-center">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-3 mr-4 shadow-lg shadow-indigo-500/40">
-              <BarChart3 className="w-8 h-8 text-white" />
-            </div>
-            <span className="gradient-text">Run Advanced Analysis</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <button
-              onClick={() => runAnalysis('outliers')}
-              disabled={analyzing}
-              className="button-hover group relative px-8 py-6 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl shadow-lg shadow-indigo-500/40 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none transition-all transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
-            >
-              <div className="relative z-10 flex items-start">
-                <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
-                  <Target className="w-7 h-7" />
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-black text-xl mb-1">Outlier Detection</div>
-                  <div className="text-sm text-indigo-100 font-medium">Find unusual values in your data</div>
-                </div>
-              </div>
-              {analyzing && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                </div>
-              )}
-            </button>
-            <button
-              onClick={() => runAnalysis('trends')}
-              disabled={analyzing}
-              className="button-hover group relative px-8 py-6 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 text-white rounded-2xl hover:shadow-2xl shadow-lg shadow-green-500/40 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none transition-all transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
-            >
-              <div className="relative z-10 flex items-start">
-                <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
-                  <TrendingUp className="w-7 h-7" />
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-black text-xl mb-1">Trend Analysis</div>
-                  <div className="text-sm text-green-100 font-medium">Identify patterns and trends</div>
-                </div>
-              </div>
-              {analyzing && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                </div>
-              )}
-            </button>
-            <button
-              onClick={() => runAnalysis('quality')}
-              disabled={analyzing}
-              className="button-hover group relative px-8 py-6 bg-gradient-to-br from-orange-500 via-red-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl shadow-lg shadow-orange-500/40 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none transition-all transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
-            >
-              <div className="relative z-10 flex items-start">
-                <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
-                  <Activity className="w-7 h-7" />
-                </div>
-                <div className="text-left flex-1">
-                  <div className="font-black text-xl mb-1">Data Quality Check</div>
-                  <div className="text-sm text-orange-100 font-medium">Check for missing and duplicate data</div>
-                </div>
-              </div>
-              {analyzing && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
+        {/* E-Commerce Analysis Actions */}
+        <EcommerceAnalysisButtons onRunAnalysis={runAnalysis} analyzing={analyzing} />
 
         {/* Tabs */}
         <div className="glass-dark rounded-3xl overflow-hidden">
@@ -926,15 +859,14 @@ export default function DatasetPage() {
 
             {activeTab === 'insights' && (
               <div className="space-y-6">
-                {dataset.analyses.filter(a => ['outliers', 'trends', 'quality'].includes(a.type)).length === 0 ? (
+                {dataset.analyses.length === 0 ? (
                   <div className="text-center py-12">
                     <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-400 mb-2 text-lg font-semibold">No insights yet</p>
-                    <p className="text-gray-500 text-sm">Run one of the analysis tools above to generate insights about your data</p>
+                    <p className="text-gray-500 text-sm">Run one of the e-commerce analysis tools above to generate insights about your data</p>
                   </div>
                 ) : (
                   dataset.analyses
-                    .filter(a => ['outliers', 'trends', 'quality'].includes(a.type))
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .map((analysis) => (
                       <div key={analysis.id} className="border border-indigo-500/20 bg-slate-800/30 rounded-xl p-6">
@@ -945,109 +877,8 @@ export default function DatasetPage() {
                           </span>
                         </div>
 
-                        {/* Render results in a user-friendly format */}
-                        <div className="space-y-4">
-                          {analysis.type === 'outliers' && analysis.results.outliers && (
-                            <div>
-                              <p className="text-gray-300 mb-3">
-                                Found outliers in <span className="font-bold text-indigo-400">{analysis.results.totalColumns}</span> columns
-                              </p>
-                              {Object.entries(analysis.results.outliers).map(([column, data]: [string, any]) => (
-                                <div key={column} className="bg-slate-900/50 p-4 rounded-lg mb-3">
-                                  <h4 className="font-semibold text-white mb-2">{column}</h4>
-                                  <div className="grid grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                      <span className="text-gray-400">Outliers found:</span>
-                                      <span className="text-red-400 font-bold ml-2">{data.count}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-400">Expected range:</span>
-                                      <span className="text-green-400 font-bold ml-2">{data.lowerBound} - {data.upperBound}</span>
-                                    </div>
-                                  </div>
-                                  <div className="mt-2">
-                                    <span className="text-gray-400 text-sm">Sample values: </span>
-                                    <span className="text-orange-400 font-mono text-sm">{data.samples.join(', ')}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {analysis.type === 'trends' && analysis.results.trends && (
-                            <div>
-                              {Object.entries(analysis.results.trends).map(([column, data]: [string, any]) => (
-                                <div key={column} className="bg-slate-900/50 p-4 rounded-lg mb-3">
-                                  <h4 className="font-semibold text-white mb-2">{column}</h4>
-                                  <div className="grid grid-cols-3 gap-3 text-sm">
-                                    <div>
-                                      <span className="text-gray-400">Direction:</span>
-                                      <span className={`font-bold ml-2 ${
-                                        data.direction === 'increasing' ? 'text-green-400' :
-                                        data.direction === 'decreasing' ? 'text-red-400' :
-                                        'text-yellow-400'
-                                      }`}>
-                                        {data.direction.toUpperCase()}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-400">Change:</span>
-                                      <span className="text-indigo-400 font-bold ml-2">{data.change}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-400">First avg:</span>
-                                      <span className="text-gray-300 font-bold ml-2">{data.firstAvg}</span>
-                                      <span className="text-gray-400 mx-2">→</span>
-                                      <span className="text-gray-300 font-bold">{data.secondAvg}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {analysis.type === 'quality' && analysis.results.quality && (
-                            <div>
-                              <p className="text-gray-300 mb-3">
-                                Analyzed <span className="font-bold text-indigo-400">{analysis.results.totalRows}</span> rows across all columns
-                              </p>
-                              {Object.entries(analysis.results.quality).map(([column, data]: [string, any]) => (
-                                <div key={column} className="bg-slate-900/50 p-4 rounded-lg mb-3">
-                                  <h4 className="font-semibold text-white mb-2">{column}</h4>
-                                  <div className="grid grid-cols-4 gap-3 text-sm">
-                                    <div>
-                                      <span className="text-gray-400">Total:</span>
-                                      <span className="text-blue-400 font-bold ml-2">{data.total}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-400">Missing:</span>
-                                      <span className={`font-bold ml-2 ${data.missing > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                        {data.missing} ({data.missingPercent})
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-400">Unique:</span>
-                                      <span className="text-purple-400 font-bold ml-2">{data.unique}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-gray-400">Duplicates:</span>
-                                      <span className={`font-bold ml-2 ${data.duplicates > 0 ? 'text-orange-400' : 'text-green-400'}`}>
-                                        {data.duplicates}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Fallback for any other format */}
-                          {!['outliers', 'trends', 'quality'].includes(analysis.type) && (
-                            <pre className="bg-slate-900/50 p-4 rounded-lg text-gray-300 overflow-x-auto text-sm">
-                              {JSON.stringify(analysis.results, null, 2)}
-                            </pre>
-                          )}
-                        </div>
+                        {/* Use E-Commerce Insights Component */}
+                        <EcommerceInsights analysis={analysis} />
                       </div>
                     ))
                 )}
