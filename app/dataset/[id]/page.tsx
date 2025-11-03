@@ -88,6 +88,9 @@ export default function DatasetPage() {
   const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'insights' | 'charts' | 'kpis'>('data');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'scatter' | 'treemap'>('bar');
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [categoryColumn, setCategoryColumn] = useState<string>('');
+  const [valueColumn, setValueColumn] = useState<string>('');
+  const [aggregation, setAggregation] = useState<'sum' | 'average' | 'count' | 'min' | 'max'>('sum');
   const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
 
@@ -252,80 +255,78 @@ export default function DatasetPage() {
 
   // Chart Data Preparation
   const prepareChartData = () => {
-    if (!dataset || selectedColumns.length === 0) return [];
+    if (!dataset || !categoryColumn || !valueColumn) return [];
 
-    return filteredRecords.slice(0, 100).map((record, idx) => {
-      const dataPoint: any = { index: idx };
-      selectedColumns.forEach(col => {
-        dataPoint[col] = Number(record.data[col]) || 0;
-      });
-      return dataPoint;
+    // Group by category and aggregate values
+    const grouped: Record<string, number[]> = {};
+
+    filteredRecords.forEach(record => {
+      const category = String(record.data[categoryColumn] || 'Unknown');
+      const value = Number(record.data[valueColumn]) || 0;
+
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(value);
     });
+
+    // Apply aggregation function
+    const chartData = Object.entries(grouped).map(([category, values]) => {
+      let aggregatedValue = 0;
+
+      switch (aggregation) {
+        case 'sum':
+          aggregatedValue = values.reduce((sum, val) => sum + val, 0);
+          break;
+        case 'average':
+          aggregatedValue = values.reduce((sum, val) => sum + val, 0) / values.length;
+          break;
+        case 'count':
+          aggregatedValue = values.length;
+          break;
+        case 'min':
+          aggregatedValue = Math.min(...values);
+          break;
+        case 'max':
+          aggregatedValue = Math.max(...values);
+          break;
+      }
+
+      return {
+        name: category,
+        value: aggregatedValue,
+        count: values.length
+      };
+    });
+
+    // Sort by value descending and take top 20
+    return chartData.sort((a, b) => b.value - a.value).slice(0, 20);
   };
 
   const preparePieData = () => {
-    if (!dataset || selectedColumns.length === 0) return [];
-
-    const column = selectedColumns[0];
-    const valueCounts: Record<string, number> = {};
-
-    filteredRecords.forEach(record => {
-      const value = String(record.data[column] || 'Unknown');
-      valueCounts[value] = (valueCounts[value] || 0) + 1;
-    });
-
-    return Object.entries(valueCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([name, value]) => ({ name, value }));
+    return prepareChartData().slice(0, 10); // Limit pie chart to top 10
   };
 
   const renderChart = () => {
     const data = prepareChartData();
 
-    if (chartType === 'treemap' && selectedColumns.length >= 2) {
-      const records = filteredRecords.map(r => r.data);
-      const treemapData = prepareTreemapData(records, selectedColumns[0], selectedColumns[1]);
-
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <Treemap
-            data={treemapData}
-            dataKey="size"
-            aspectRatio={4/3}
-            stroke="#1e293b"
-            fill="#6366f1"
-          >
-            <Tooltip
-              contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  return (
-                    <div className="bg-slate-800 border border-indigo-500 rounded-lg p-3">
-                      <p className="text-white font-semibold">{payload[0].payload.name}</p>
-                      <p className="text-indigo-300">Value: {payload[0].value?.toLocaleString()}</p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-          </Treemap>
-        </ResponsiveContainer>
-      );
+    if (data.length === 0) {
+      return <p className="text-center text-gray-400 py-12">No data to display</p>;
     }
+
+    const aggregationLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
 
     if (chartType === 'pie') {
       const pieData = preparePieData();
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={500}>
           <RePieChart>
             <Pie
               data={pieData}
               cx="50%"
               cy="50%"
-              labelLine={false}
-              label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              labelLine={true}
+              label={({name, value, percent}) => `${name}: ${value.toLocaleString()} (${(percent * 100).toFixed(1)}%)`}
               outerRadius={150}
               fill="#8884d8"
               dataKey="value"
@@ -334,47 +335,36 @@ export default function DatasetPage() {
                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
+            <Tooltip
+              contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
+              formatter={(value: any) => [value.toLocaleString(), `${aggregationLabel} of ${valueColumn}`]}
+            />
             <Legend />
           </RePieChart>
         </ResponsiveContainer>
       );
     }
 
-    if (chartType === 'scatter' && selectedColumns.length >= 2) {
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <ReScatterChart>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey={selectedColumns[0]} stroke="#9ca3af" name={selectedColumns[0]} />
-            <YAxis dataKey={selectedColumns[1]} stroke="#9ca3af" name={selectedColumns[1]} />
-            <ZAxis range={[60, 400]} />
-            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} cursor={{strokeDasharray: '3 3'}} />
-            <Legend />
-            <Scatter name="Data Points" data={data} fill="#6366f1" />
-          </ReScatterChart>
-        </ResponsiveContainer>
-      );
-    }
-
     if (chartType === 'line') {
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={500}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey="index" stroke="#9ca3af" />
+            <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={100} />
             <YAxis stroke="#9ca3af" />
-            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
+            <Tooltip
+              contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
+              formatter={(value: any) => [value.toLocaleString(), `${aggregationLabel} of ${valueColumn}`]}
+            />
             <Legend />
-            {selectedColumns.map((col, idx) => (
-              <Line
-                key={col}
-                type="monotone"
-                dataKey={col}
-                stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-                strokeWidth={2}
-              />
-            ))}
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#6366f1"
+              strokeWidth={3}
+              dot={{ fill: '#8b5cf6', r: 5 }}
+              name={`${aggregationLabel} of ${valueColumn}`}
+            />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -382,16 +372,31 @@ export default function DatasetPage() {
 
     // Default: Bar Chart
     return (
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={500}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="index" stroke="#9ca3af" />
+          <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={100} />
           <YAxis stroke="#9ca3af" />
-          <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
+          <Tooltip
+            contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
+            formatter={(value: any) => [value.toLocaleString(), `${aggregationLabel} of ${valueColumn}`]}
+          />
           <Legend />
-          {selectedColumns.map((col, idx) => (
-            <Bar key={col} dataKey={col} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-          ))}
+          <Bar
+            dataKey="value"
+            fill="url(#barGradient)"
+            name={`${aggregationLabel} of ${valueColumn}`}
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+            ))}
+          </Bar>
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9}/>
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.7}/>
+            </linearGradient>
+          </defs>
         </BarChart>
       </ResponsiveContainer>
     );
@@ -785,63 +790,104 @@ export default function DatasetPage() {
 
             {activeTab === 'charts' && (
               <div>
-                <div className="mb-6 flex flex-wrap items-center gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Chart Type</label>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setChartType('bar')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'bar' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                <div className="mb-6 p-6 bg-slate-800/50 rounded-lg border border-indigo-500/30">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Category Column (Text Data) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Category (Text)</label>
+                      <select
+                        value={categoryColumn}
+                        onChange={(e) => setCategoryColumn(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white focus:ring-2 focus:ring-indigo-500"
                       >
-                        <BarChart3 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('line')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'line' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                        <option value="">Select category...</option>
+                        {columnStats.filter(stat => stat.type === 'text').map(stat => (
+                          <option key={stat.column} value={stat.column}>{stat.column}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">X-axis</p>
+                    </div>
+
+                    {/* Value Column (Numeric Data) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Value (Numeric)</label>
+                      <select
+                        value={valueColumn}
+                        onChange={(e) => setValueColumn(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white focus:ring-2 focus:ring-indigo-500"
                       >
-                        <TrendingUp className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('pie')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'pie' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                        <option value="">Select value...</option>
+                        {columnStats.filter(stat => stat.type === 'numeric').map(stat => (
+                          <option key={stat.column} value={stat.column}>{stat.column}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Y-axis</p>
+                    </div>
+
+                    {/* Aggregation Function */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Aggregation</label>
+                      <select
+                        value={aggregation}
+                        onChange={(e) => setAggregation(e.target.value as any)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white focus:ring-2 focus:ring-indigo-500"
                       >
-                        <PieChart className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('scatter')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'scatter' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
-                      >
-                        <ScatterChart className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('treemap')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'treemap' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
-                      >
-                        <Grid3X3 className="w-5 h-5" />
-                      </button>
+                        <option value="sum">Sum</option>
+                        <option value="average">Average</option>
+                        <option value="count">Count</option>
+                        <option value="min">Minimum</option>
+                        <option value="max">Maximum</option>
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Function to apply</p>
+                    </div>
+
+                    {/* Chart Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Chart Type</label>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setChartType('bar')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${chartType === 'bar' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                          title="Bar Chart"
+                        >
+                          <BarChart3 className="w-5 h-5 mx-auto" />
+                        </button>
+                        <button
+                          onClick={() => setChartType('line')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${chartType === 'line' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                          title="Line Chart"
+                        >
+                          <TrendingUp className="w-5 h-5 mx-auto" />
+                        </button>
+                        <button
+                          onClick={() => setChartType('pie')}
+                          className={`flex-1 px-3 py-2 rounded-lg transition-colors ${chartType === 'pie' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                          title="Pie Chart"
+                        >
+                          <PieChart className="w-5 h-5 mx-auto" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Visualization style</p>
                     </div>
                   </div>
 
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-400 mb-2">Select Columns</label>
-                    <select
-                      multiple
-                      value={selectedColumns}
-                      onChange={(e) => setSelectedColumns(Array.from(e.target.selectedOptions, option => option.value))}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white"
-                      size={3}
-                    >
-                      {columnStats.filter(stat => stat.type === 'numeric').map(stat => (
-                        <option key={stat.column} value={stat.column}>{stat.column}</option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple columns</p>
-                  </div>
+                  {/* Chart Description */}
+                  {categoryColumn && valueColumn && (
+                    <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
+                      <p className="text-sm text-indigo-300">
+                        <span className="font-semibold">Chart:</span> {aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of <span className="font-semibold">{valueColumn}</span> grouped by <span className="font-semibold">{categoryColumn}</span>
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-slate-900/50 rounded-lg p-6">
-                  {selectedColumns.length > 0 ? renderChart() : (
-                    <p className="text-center text-gray-400 py-12">Select columns to visualize data</p>
+                  {categoryColumn && valueColumn ? renderChart() : (
+                    <div className="text-center py-12">
+                      <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-400 text-lg font-semibold mb-2">Select data to visualize</p>
+                      <p className="text-gray-500 text-sm">Choose a category column and a value column to create your chart</p>
+                    </div>
                   )}
                 </div>
               </div>
