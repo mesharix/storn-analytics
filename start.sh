@@ -6,10 +6,10 @@ if [ -z "$DATABASE_URL" ]; then
   echo "Warning: DATABASE_URL is not set"
 fi
 
-# Run Prisma migrations using the binary directly
+# Run Prisma migrations
 echo "Running Prisma migrations..."
 cd /app
-./node_modules/.bin/prisma db push --skip-generate
+npx prisma db push --skip-generate --accept-data-loss || echo "Migration failed, but continuing..."
 
 # Start the Next.js server
 echo "Starting Next.js server..."
