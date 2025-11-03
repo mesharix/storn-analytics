@@ -370,26 +370,85 @@ export function detectEcommerceColumns(data: DataRow[]) {
   const columns = Object.keys(data[0]);
   const detected: Record<string, string> = {};
 
-  // Common patterns for detection
+  // Arabic column mappings (exact match)
+  const arabicMappings: Record<string, string> = {
+    'تاريخ الطلب': 'dateColumn',
+    'اجمالي الطلب': 'revenueColumn',
+    'اسماء المنتجات مع SKU': 'productColumn',
+    'طريقة الدفع': 'paymentColumn',
+    'الضريبة': 'vatColumn',
+    'المدينة': 'cityColumn',
+    'الدولة': 'countryColumn',
+  };
+
+  // Common English patterns for detection
   const patterns = {
-    date: /date|time|created|ordered|purchased/i,
-    revenue: /revenue|total|amount|price|value|sales/i,
-    customer: /customer|client|user|buyer/i,
-    product: /product|item|sku|name/i,
-    quantity: /quantity|qty|count|units/i,
-    category: /category|type|department/i,
+    date: /date|time|created|ordered|purchased|تاريخ/i,
+    revenue: /revenue|total|amount|price|value|sales|اجمالي|إجمالي/i,
+    customer: /customer|client|user|buyer|عميل|زبون/i,
+    product: /product|item|sku|name|منتج|اسماء/i,
+    quantity: /quantity|qty|count|units|كمية|عدد/i,
+    category: /category|type|department|فئة|قسم/i,
+    payment: /payment|method|طريقة/i,
+    vat: /vat|tax|ضريبة/i,
+    city: /city|مدينة/i,
+    country: /country|دولة/i,
   };
 
   columns.forEach(col => {
-    const lower = col.toLowerCase();
+    // Check for exact Arabic match first
+    if (arabicMappings[col]) {
+      detected[arabicMappings[col]] = col;
+      return;
+    }
 
+    // Fallback to pattern matching
+    const lower = col.toLowerCase();
     if (patterns.date.test(lower)) detected.dateColumn = col;
     if (patterns.revenue.test(lower)) detected.revenueColumn = col;
     if (patterns.customer.test(lower)) detected.customerColumn = col;
     if (patterns.product.test(lower)) detected.productColumn = col;
     if (patterns.quantity.test(lower)) detected.quantityColumn = col;
     if (patterns.category.test(lower)) detected.categoryColumn = col;
+    if (patterns.payment.test(lower)) detected.paymentColumn = col;
+    if (patterns.vat.test(lower)) detected.vatColumn = col;
+    if (patterns.city.test(lower)) detected.cityColumn = col;
+    if (patterns.country.test(lower)) detected.countryColumn = col;
   });
 
   return detected;
+}
+
+// ===== DATA CLEANING & TRANSFORMATION =====
+
+export function cleanEcommerceData(data: DataRow[], detectedColumns: Record<string, string>): DataRow[] {
+  return data.map(row => {
+    const cleanedRow = { ...row };
+
+    // Clean product name: Remove SKU (anything after " - " or in parentheses)
+    if (detectedColumns.productColumn) {
+      const productValue = cleanedRow[detectedColumns.productColumn];
+      if (productValue && typeof productValue === 'string') {
+        // Remove SKU patterns like " - SKU123" or " (SKU123)" or " SKU: 123"
+        let cleanProduct = productValue
+          .replace(/\s*-\s*SKU[:\s]*.*/i, '')  // Remove " - SKU: xxx"
+          .replace(/\s*\(SKU[:\s]*.*?\)/i, '') // Remove " (SKU: xxx)"
+          .replace(/\s*SKU[:\s]*.*/i, '')      // Remove " SKU: xxx"
+          .replace(/\s*-\s*\d+\s*$/, '')       // Remove trailing " - 123"
+          .trim();
+
+        cleanedRow[detectedColumns.productColumn] = cleanProduct;
+      }
+    }
+
+    // Fill blank city fields with "N/A"
+    if (detectedColumns.cityColumn) {
+      const cityValue = cleanedRow[detectedColumns.cityColumn];
+      if (!cityValue || cityValue === '' || cityValue === null || cityValue === undefined) {
+        cleanedRow[detectedColumns.cityColumn] = 'N/A';
+      }
+    }
+
+    return cleanedRow;
+  });
 }

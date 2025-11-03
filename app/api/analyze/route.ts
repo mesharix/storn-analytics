@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { findCorrelations, analyzeDataset } from '@/lib/dataAnalysis';
 import {
   detectEcommerceColumns,
+  cleanEcommerceData,
   calculateRevenueMetrics,
   calculateRevenueTrends,
   analyzeProductPerformance,
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = dataset.records.map(r => r.data) as any[];
+    let data = dataset.records.map(r => r.data) as any[];
     console.log('Dataset loaded:', { recordCount: data.length, columns: data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, any>) : [] });
 
     let results: any = {};
@@ -49,6 +50,12 @@ export async function POST(request: NextRequest) {
 
     // Auto-detect e-commerce columns if not provided
     const detectedColumns = columns || detectEcommerceColumns(data) || {};
+
+    // Clean data: Remove SKU from product names, fill blank cities with N/A
+    if (detectedColumns.productColumn || detectedColumns.cityColumn) {
+      data = cleanEcommerceData(data, detectedColumns);
+      console.log('Data cleaned: SKU removed, blank cities filled with N/A');
+    }
 
     switch (analysisType) {
       // ===== E-COMMERCE ANALYSES =====

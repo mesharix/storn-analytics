@@ -50,11 +50,13 @@ export async function POST(request: NextRequest) {
 
     // Parse based on file type
     if (fileName.endsWith('.csv')) {
-      const text = new TextDecoder().decode(buffer);
+      // Explicitly decode as UTF-8 to support Arabic text
+      const text = new TextDecoder('utf-8').decode(buffer);
       const result = Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: true,
+        encoding: 'UTF-8',
       });
       parsedData = result.data;
     } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
