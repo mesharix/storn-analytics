@@ -590,26 +590,34 @@ export default function DatasetPage() {
                       const uniqueValues = getUniqueValues(dataset.records.map(r => r.data), column);
                       const currentFilter = filters[column] || { operator: 'equals', value: '' };
 
+                      // Check if this column should skip the operator dropdown
+                      const skipOperatorDropdown = ['الدولة', 'اسماء المنتجات مع SKU', 'طريقة الدفع', 'المدينة'].includes(column);
+
+                      // Map column display names
+                      const displayName = column === 'الضريبة' ? 'اسماء المنتجات مع SKU' : column;
+
                       return (
                         <div key={column} className="bg-slate-900/50 p-3 rounded-lg">
-                          <label className="block text-sm font-medium text-gray-300 mb-2">{column}</label>
+                          <label className="block text-sm font-medium text-gray-300 mb-2">{displayName}</label>
                           <div className="space-y-2">
-                            <select
-                              value={currentFilter.operator}
-                              onChange={(e) => setFilters({
-                                ...filters,
-                                [column]: { ...currentFilter, operator: e.target.value as any }
-                              })}
-                              className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
-                            >
-                              <option value="equals">Equals</option>
-                              <option value="contains">Contains</option>
-                              <option value="greaterThan">Greater Than</option>
-                              <option value="lessThan">Less Than</option>
-                              <option value="between">Between</option>
-                            </select>
+                            {!skipOperatorDropdown && (
+                              <select
+                                value={currentFilter.operator}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  [column]: { ...currentFilter, operator: e.target.value as any }
+                                })}
+                                className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value="equals">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="greaterThan">Greater Than</option>
+                                <option value="lessThan">Less Than</option>
+                                <option value="between">Between</option>
+                              </select>
+                            )}
 
-                            {currentFilter.operator === 'between' ? (
+                            {!skipOperatorDropdown && currentFilter.operator === 'between' ? (
                               <div className="flex space-x-2">
                                 <input
                                   type="text"
@@ -632,10 +640,10 @@ export default function DatasetPage() {
                                   className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
                                 />
                               </div>
-                            ) : column === 'مجموع السلة' ? (
+                            ) : skipOperatorDropdown || column === 'مجموع السلة' ? (
                               <input
                                 type="text"
-                                placeholder={`Filter ${column}...`}
+                                placeholder={`Filter ${displayName}...`}
                                 value={currentFilter.value || ''}
                                 onChange={(e) => setFilters({
                                   ...filters,
