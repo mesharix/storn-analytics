@@ -416,6 +416,12 @@ export function detectEcommerceColumns(data: DataRow[]) {
     if (patterns.country.test(lower)) detected.countryColumn = col;
   });
 
+  // Fallback: If no customer column found, use city as customer identifier
+  // This allows RFM and cohort analysis to work by analyzing cities as customer segments
+  if (!detected.customerColumn && detected.cityColumn) {
+    detected.customerColumn = detected.cityColumn;
+  }
+
   return detected;
 }
 
@@ -425,16 +431,18 @@ export function cleanEcommerceData(data: DataRow[], detectedColumns: Record<stri
   return data.map(row => {
     const cleanedRow = { ...row };
 
-    // Clean product name: Remove SKU (anything after " - " or in parentheses)
+    // Clean product name: Remove SKU and Qty patterns
     if (detectedColumns.productColumn) {
       const productValue = cleanedRow[detectedColumns.productColumn];
       if (productValue && typeof productValue === 'string') {
-        // Remove SKU patterns like " - SKU123" or " (SKU123)" or " SKU: 123"
+        // Remove SKU and Qty patterns like " - SKU123", "(SKU: 123)", "(Qty: 1)", etc.
         let cleanProduct = productValue
-          .replace(/\s*-\s*SKU[:\s]*.*/i, '')  // Remove " - SKU: xxx"
-          .replace(/\s*\(SKU[:\s]*.*?\)/i, '') // Remove " (SKU: xxx)"
-          .replace(/\s*SKU[:\s]*.*/i, '')      // Remove " SKU: xxx"
-          .replace(/\s*-\s*\d+\s*$/, '')       // Remove trailing " - 123"
+          .replace(/\s*-\s*SKU[:\s]*.*/i, '')     // Remove " - SKU: xxx"
+          .replace(/\s*\(SKU[:\s]*.*?\)/i, '')    // Remove " (SKU: xxx)"
+          .replace(/\s*SKU[:\s]*.*/i, '')         // Remove " SKU: xxx"
+          .replace(/\s*\(Qty[:\s]*.*?\)/i, '')    // Remove " (Qty: 1)"
+          .replace(/\s*Qty[:\s]*.*/i, '')         // Remove " Qty: 1"
+          .replace(/\s*-\s*\d+\s*$/, '')          // Remove trailing " - 123"
           .trim();
 
         cleanedRow[detectedColumns.productColumn] = cleanProduct;

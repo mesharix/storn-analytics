@@ -5,6 +5,12 @@ interface EcommerceInsightsProps {
   analysis: any;
 }
 
+// Helper function to format currency in SAR
+const formatSAR = (amount: string | number) => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return `${numAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SAR`;
+};
+
 export function EcommerceInsights({ analysis }: EcommerceInsightsProps) {
   const { type, results } = analysis;
 
@@ -50,7 +56,7 @@ function RevenueInsights({ results }: { results: any }) {
             <span className="text-sm text-green-300">Total Revenue</span>
             <DollarSign className="w-5 h-5 text-green-400" />
           </div>
-          <p className="text-2xl font-bold text-white">${metrics.totalRevenue}</p>
+          <p className="text-2xl font-bold text-white">{formatSAR(metrics.totalRevenue)}</p>
         </div>
 
         <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-4">
@@ -66,7 +72,7 @@ function RevenueInsights({ results }: { results: any }) {
             <span className="text-sm text-purple-300">Avg Order Value</span>
             <Target className="w-5 h-5 text-purple-400" />
           </div>
-          <p className="text-2xl font-bold text-white">${metrics.averageOrderValue}</p>
+          <p className="text-2xl font-bold text-white">{formatSAR(metrics.averageOrderValue)}</p>
         </div>
 
         <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 rounded-xl p-4">
@@ -92,7 +98,7 @@ function RevenueInsights({ results }: { results: any }) {
             {trends.trends.slice(-10).reverse().map((trend: any, idx: number) => (
               <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-700/50">
                 <span className="text-gray-400 text-sm">{trend.date}</span>
-                <span className="text-white font-mono font-semibold">${trend.revenue}</span>
+                <span className="text-white font-mono font-semibold">{formatSAR(trend.revenue)}</span>
               </div>
             ))}
           </div>
@@ -123,7 +129,7 @@ function ProductInsights({ results }: { results: any }) {
             <div key={idx} className="bg-slate-800/50 p-3 rounded-lg">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-white font-medium">#{idx + 1} {product.product}</span>
-                <span className="text-green-400 font-bold text-lg">${product.revenue}</span>
+                <span className="text-green-400 font-bold text-lg">{formatSAR(product.revenue)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
@@ -136,7 +142,7 @@ function ProductInsights({ results }: { results: any }) {
                 </div>
                 <div>
                   <span className="text-gray-400">Avg Price:</span>
-                  <span className="text-white ml-1 font-semibold">${product.averagePrice}</span>
+                  <span className="text-white ml-1 font-semibold">{formatSAR(product.averagePrice)}</span>
                 </div>
               </div>
             </div>
@@ -209,7 +215,7 @@ function RFMInsights({ results }: { results: any }) {
                 </div>
                 <div>
                   <span className="text-gray-400">Monetary:</span>
-                  <span className="text-white ml-1 font-semibold">${customer.monetary}</span>
+                  <span className="text-white ml-1 font-semibold">{formatSAR(customer.monetary)}</span>
                 </div>
                 <div>
                   <span className="text-gray-400">Score:</span>
@@ -261,7 +267,7 @@ function CustomerInsights({ results }: { results: any }) {
             <span className="text-sm text-yellow-300">Avg CLV</span>
             <DollarSign className="w-5 h-5 text-yellow-400" />
           </div>
-          <p className="text-2xl font-bold text-white">${results.averageCLV}</p>
+          <p className="text-2xl font-bold text-white">{formatSAR(results.averageCLV)}</p>
         </div>
 
         <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/20 border border-orange-500/30 rounded-xl p-4 col-span-2">
@@ -283,7 +289,7 @@ function CustomerInsights({ results }: { results: any }) {
                 <span className="text-white font-medium">#{idx + 1} {customer.customer}</span>
                 <span className="text-gray-400 text-sm ml-3">{customer.orders} orders</span>
               </div>
-              <span className="text-green-400 font-bold">${customer.revenue}</span>
+              <span className="text-green-400 font-bold">{formatSAR(customer.revenue)}</span>
             </div>
           ))}
         </div>
@@ -310,7 +316,7 @@ function CohortInsights({ results }: { results: any }) {
                   <Calendar className="w-4 h-4 text-indigo-400 mr-2" />
                   <span className="text-white font-medium">{cohort.cohort}</span>
                 </div>
-                <span className="text-green-400 font-bold">${cohort.revenue}</span>
+                <span className="text-green-400 font-bold">{formatSAR(cohort.revenue)}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
@@ -319,7 +325,7 @@ function CohortInsights({ results }: { results: any }) {
                 </div>
                 <div>
                   <span className="text-gray-400">Avg per Customer:</span>
-                  <span className="text-white ml-1 font-semibold">${cohort.avgRevenuePerCustomer}</span>
+                  <span className="text-white ml-1 font-semibold">{formatSAR(cohort.avgRevenuePerCustomer)}</span>
                 </div>
               </div>
             </div>
@@ -357,7 +363,7 @@ function ForecastInsights({ results }: { results: any }) {
           {results.forecast.map((day: any, idx: number) => (
             <div key={idx} className="flex justify-between items-center py-2 border-b border-slate-700/50">
               <span className="text-gray-400 text-sm">{day.date}</span>
-              <span className="text-indigo-400 font-mono font-semibold">${day.predictedRevenue}</span>
+              <span className="text-indigo-400 font-mono font-semibold">{formatSAR(day.predictedRevenue)}</span>
             </div>
           ))}
         </div>
