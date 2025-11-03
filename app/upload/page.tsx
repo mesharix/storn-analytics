@@ -87,8 +87,8 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen animated-bg">
+      <header className="glass-dark border-b border-white border-opacity-20">
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <Link
             href="/"
@@ -103,7 +103,7 @@ export default function UploadPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="glass-dark rounded-3xl p-10 glow-purple">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File Upload */}
             <div>

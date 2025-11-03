@@ -119,7 +119,7 @@ export default function DatasetPage() {
   const correlationAnalysis = dataset.analyses.find(a => a.type === 'correlation');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen animated-bg">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <Link
@@ -155,75 +155,102 @@ export default function DatasetPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Analysis Actions */}
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-            <div className="bg-indigo-100 rounded-xl p-2 mr-3">
-              <BarChart3 className="w-6 h-6 text-indigo-600" />
+        <div className="glass-dark rounded-3xl p-10 mb-10 glow-purple">
+          <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center">
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-3 mr-4 glow-purple">
+              <BarChart3 className="w-8 h-8 text-white" />
             </div>
-            Run Advanced Analysis
+            <span className="gradient-text">Run Advanced Analysis</span>
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <button
               onClick={() => runAnalysis('correlation')}
               disabled={analyzing}
-              className="group px-6 py-4 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl hover:from-indigo-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 transition-all shadow-lg transform hover:scale-105 inline-flex items-center justify-center font-semibold"
+              className="button-hover group relative px-8 py-6 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-2xl disabled:from-gray-400 disabled:to-gray-500 transition-all shadow-xl transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
             >
-              <TrendingUp className="w-5 h-5 mr-3" />
-              <div className="text-left">
-                <div className="font-bold">Correlation Analysis</div>
-                <div className="text-xs text-indigo-100">Find relationships between variables</div>
+              <div className="relative z-10 flex items-start">
+                <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
+                  <TrendingUp className="w-7 h-7" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-black text-xl mb-1">Correlation Analysis</div>
+                  <div className="text-sm text-indigo-100 font-medium">Find relationships between variables</div>
+                </div>
               </div>
+              {analyzing && (
+                <div className="absolute inset-0 bg-white bg-opacity-20 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                </div>
+              )}
             </button>
             <button
               onClick={() => runAnalysis('distribution')}
               disabled={analyzing}
-              className="group px-6 py-4 bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400 transition-all shadow-lg transform hover:scale-105 inline-flex items-center justify-center font-semibold"
+              className="button-hover group relative px-8 py-6 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 text-white rounded-2xl hover:shadow-2xl disabled:from-gray-400 disabled:to-gray-500 transition-all shadow-xl transform hover:scale-105 disabled:cursor-not-allowed overflow-hidden"
             >
-              <BarChart3 className="w-5 h-5 mr-3" />
-              <div className="text-left">
-                <div className="font-bold">Distribution Analysis</div>
-                <div className="text-xs text-green-100">Analyze data distribution patterns</div>
+              <div className="relative z-10 flex items-start">
+                <div className="bg-white bg-opacity-20 rounded-xl p-3 mr-4">
+                  <BarChart3 className="w-7 h-7" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-black text-xl mb-1">Distribution Analysis</div>
+                  <div className="text-sm text-green-100 font-medium">Analyze data distribution patterns</div>
+                </div>
               </div>
+              {analyzing && (
+                <div className="absolute inset-0 bg-white bg-opacity-20 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                </div>
+              )}
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-          <div className="border-b border-gray-200 bg-gray-50">
+        <div className="glass-dark rounded-3xl overflow-hidden">
+          <div className="border-b-2 border-gray-200">
             <nav className="flex">
               <button
                 onClick={() => setActiveTab('data')}
-                className={`px-8 py-4 border-b-3 font-semibold text-sm transition-all ${
+                className={`px-8 py-5 font-bold text-sm transition-all relative ${
                   activeTab === 'data'
-                    ? 'border-indigo-600 text-indigo-600 bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-indigo-600'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <Table2 className="w-4 h-4 inline mr-2" />
+                <Table2 className="w-5 h-5 inline mr-2" />
                 Data Preview
+                {activeTab === 'data' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-full"></div>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`px-8 py-4 border-b-3 font-semibold text-sm transition-all ${
+                className={`px-8 py-5 font-bold text-sm transition-all relative ${
                   activeTab === 'stats'
-                    ? 'border-indigo-600 text-indigo-600 bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-indigo-600'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <BarChart3 className="w-4 h-4 inline mr-2" />
+                <BarChart3 className="w-5 h-5 inline mr-2" />
                 Statistics
+                {activeTab === 'stats' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-full"></div>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('correlations')}
-                className={`px-8 py-4 border-b-3 font-semibold text-sm transition-all ${
+                className={`px-8 py-5 font-bold text-sm transition-all relative ${
                   activeTab === 'correlations'
-                    ? 'border-indigo-600 text-indigo-600 bg-white'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-indigo-600'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <TrendingUp className="w-4 h-4 inline mr-2" />
+                <TrendingUp className="w-5 h-5 inline mr-2" />
                 Correlations
+                {activeTab === 'correlations' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-full"></div>
+                )}
               </button>
             </nav>
           </div>

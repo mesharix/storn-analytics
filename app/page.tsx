@@ -57,14 +57,16 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen animated-bg">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="glass-dark border-b border-white border-opacity-20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="w-8 h-8 text-indigo-600" />
-              <h1 className="text-3xl font-bold text-gray-900">Storn Analytics</h1>
+            <div className="flex items-center space-x-3 float-animation">
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-xl glow-purple">
+                <BarChart3 className="w-8 h-8 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold gradient-text">Storn Analytics</h1>
             </div>
             <div className="flex items-center space-x-4">
               {session ? (
@@ -114,48 +116,51 @@ export default function Home() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          <div className="glass-dark rounded-3xl p-8 hover-lift glow-blue">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Total Datasets</p>
-                <p className="text-4xl font-bold text-white">{datasets.length}</p>
-                <p className="text-blue-100 text-xs mt-2">Active projects</p>
+                <p className="text-blue-600 text-sm font-bold mb-2 uppercase tracking-wide">Total Datasets</p>
+                <p className="text-5xl font-black text-gray-900 mb-2">{datasets.length}</p>
+                <p className="text-gray-600 text-sm font-medium">Active projects</p>
               </div>
-              <div className="bg-white bg-opacity-20 rounded-xl p-3">
-                <Database className="w-8 h-8 text-white" />
+              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-2xl float-animation">
+                <Database className="w-10 h-10 text-white" />
               </div>
             </div>
+            <div className="mt-4 h-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300">
+          <div className="glass-dark rounded-3xl p-8 hover-lift glow-green">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-sm font-medium mb-1">Total Records</p>
-                <p className="text-4xl font-bold text-white">
+                <p className="text-green-600 text-sm font-bold mb-2 uppercase tracking-wide">Total Records</p>
+                <p className="text-5xl font-black text-gray-900 mb-2">
                   {datasets.reduce((sum, d) => sum + d.rowCount, 0).toLocaleString()}
                 </p>
-                <p className="text-green-100 text-xs mt-2">Data points analyzed</p>
+                <p className="text-gray-600 text-sm font-medium">Data points analyzed</p>
               </div>
-              <div className="bg-white bg-opacity-20 rounded-xl p-3">
-                <TrendingUp className="w-8 h-8 text-white" />
+              <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-4 rounded-2xl float-animation" style={{animationDelay: '0.5s'}}>
+                <TrendingUp className="w-10 h-10 text-white" />
               </div>
             </div>
+            <div className="mt-4 h-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl shadow-xl p-6 transform hover:scale-105 transition-transform duration-300">
+          <div className="glass-dark rounded-3xl p-8 hover-lift glow-purple">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium mb-1">Analyses Run</p>
-                <p className="text-4xl font-bold text-white">
+                <p className="text-purple-600 text-sm font-bold mb-2 uppercase tracking-wide">Analyses Run</p>
+                <p className="text-5xl font-black text-gray-900 mb-2">
                   {datasets.reduce((sum, d) => sum + d._count.analyses, 0)}
                 </p>
-                <p className="text-purple-100 text-xs mt-2">Insights generated</p>
+                <p className="text-gray-600 text-sm font-medium">Insights generated</p>
               </div>
-              <div className="bg-white bg-opacity-20 rounded-xl p-3">
-                <BarChart3 className="w-8 h-8 text-white" />
+              <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-4 rounded-2xl float-animation" style={{animationDelay: '1s'}}>
+                <BarChart3 className="w-10 h-10 text-white" />
               </div>
             </div>
+            <div className="mt-4 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
           </div>
         </div>
 
@@ -214,48 +219,60 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {datasets.map((dataset) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {datasets.map((dataset, index) => (
                 <div
                   key={dataset.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden border border-gray-100"
+                  className="glass-dark rounded-3xl overflow-hidden hover-lift group"
+                  style={{animationDelay: `${index * 0.1}s`}}
                 >
-                  <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white">
-                    <div className="flex items-center justify-between mb-4">
-                      <Database className="w-8 h-8 opacity-80" />
-                      <span className="text-xs bg-white bg-opacity-20 px-3 py-1 rounded-full">
-                        {new Date(dataset.uploadedAt).toLocaleDateString()}
-                      </span>
+                  <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 text-white overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-16 -mt-16"></div>
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -ml-12 -mb-12"></div>
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="bg-white bg-opacity-20 backdrop-blur-lg rounded-2xl p-3">
+                          <Database className="w-7 h-7" />
+                        </div>
+                        <span className="text-xs bg-white bg-opacity-20 backdrop-blur-lg px-3 py-1 rounded-full font-medium">
+                          {new Date(dataset.uploadedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <h3 className="text-2xl font-black mb-2 truncate">{dataset.name}</h3>
+                      <p className="text-indigo-100 text-sm truncate flex items-center">
+                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                        </svg>
+                        {dataset.fileName}
+                      </p>
                     </div>
-                    <h3 className="text-xl font-bold mb-2 truncate">{dataset.name}</h3>
-                    <p className="text-indigo-100 text-sm truncate">{dataset.fileName}</p>
                   </div>
 
                   <div className="p-6">
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <p className="text-xs text-blue-600 font-medium mb-1">Rows</p>
-                        <p className="text-lg font-bold text-blue-900">{dataset.rowCount.toLocaleString()}</p>
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4 border-2 border-blue-200">
+                        <p className="text-xs text-blue-700 font-bold mb-1 uppercase">Rows</p>
+                        <p className="text-2xl font-black text-blue-900">{dataset.rowCount.toLocaleString()}</p>
                       </div>
-                      <div className="bg-purple-50 rounded-lg p-3">
-                        <p className="text-xs text-purple-600 font-medium mb-1">Columns</p>
-                        <p className="text-lg font-bold text-purple-900">{dataset.columnCount}</p>
+                      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 border-2 border-purple-200">
+                        <p className="text-xs text-purple-700 font-bold mb-1 uppercase">Columns</p>
+                        <p className="text-2xl font-black text-purple-900">{dataset.columnCount}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between pt-4 border-t-2 border-gray-200">
                       <Link
                         href={`/dataset/${dataset.id}`}
-                        className="flex items-center text-indigo-600 hover:text-indigo-700 font-semibold text-sm transition-colors"
+                        className="button-hover flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl"
                       >
                         View Details
-                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </Link>
                       <button
                         onClick={() => deleteDataset(dataset.id)}
-                        className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                        className="text-red-600 hover:text-red-700 text-sm font-bold transition-colors px-3 py-2 hover:bg-red-50 rounded-lg"
                       >
                         Delete
                       </button>
