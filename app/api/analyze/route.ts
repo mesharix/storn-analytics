@@ -53,11 +53,11 @@ export async function POST(request: NextRequest) {
         analysisName = 'Distribution Analysis';
         // Get frequency distributions for each column
         if (data.length > 0) {
-          const columns = Object.keys(data[0]);
+          const columns = Object.keys(data[0] as Record<string, any>);
           const distributions: any = {};
 
           columns.forEach(col => {
-            const values = data.map(row => row[col]);
+            const values = data.map(row => (row as any)[col]);
             const freq: Record<string, number> = {};
 
             values.forEach(val => {
