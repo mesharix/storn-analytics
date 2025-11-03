@@ -7,6 +7,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { datasetId, analysisType } = body;
 
+    console.log('Analysis request:', { datasetId, analysisType });
+
     if (!datasetId) {
       return NextResponse.json(
         { error: 'Dataset ID is required' },
@@ -30,12 +32,15 @@ export async function POST(request: NextRequest) {
     }
 
     const data = dataset.records.map(r => r.data);
+    console.log('Dataset loaded:', { recordCount: data.length, columns: data.length > 0 ? Object.keys(data[0]) : [] });
+
     let results: any = {};
     let analysisName = '';
 
     switch (analysisType) {
       case 'outliers':
         analysisName = 'Outlier Detection';
+        console.log('Running outlier detection...');
         // Detect outliers using IQR method
         if (data.length > 0) {
           const columns = Object.keys(data[0] as Record<string, any>);
@@ -71,11 +76,13 @@ export async function POST(request: NextRequest) {
           });
 
           results = { outliers, totalColumns: Object.keys(outliers).length };
+          console.log('Outlier detection complete:', { columnsWithOutliers: Object.keys(outliers).length });
         }
         break;
 
       case 'trends':
         analysisName = 'Trend Analysis';
+        console.log('Running trend analysis...');
         // Analyze trends in numeric columns
         if (data.length > 5) {
           const columns = Object.keys(data[0] as Record<string, any>);
@@ -101,11 +108,15 @@ export async function POST(request: NextRequest) {
           });
 
           results = { trends };
+          console.log('Trend analysis complete:', { columnsAnalyzed: Object.keys(trends).length });
+        } else {
+          console.log('Not enough data for trend analysis. Need > 5 rows, got:', data.length);
         }
         break;
 
       case 'quality':
         analysisName = 'Data Quality Check';
+        console.log('Running data quality check...');
         // Check for missing values and duplicates
         if (data.length > 0) {
           const columns = Object.keys(data[0] as Record<string, any>);
@@ -126,6 +137,7 @@ export async function POST(request: NextRequest) {
           });
 
           results = { quality, totalRows: data.length };
+          console.log('Data quality check complete:', { columnsChecked: Object.keys(quality).length });
         }
         break;
 
@@ -145,6 +157,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Save analysis to database
+    console.log('Saving analysis to database...', { analysisName, type: analysisType, hasResults: Object.keys(results).length > 0 });
+
     const analysis = await prisma.analysis.create({
       data: {
         datasetId,
@@ -154,14 +168,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('Analysis saved successfully:', analysis.id);
+
     return NextResponse.json({
       success: true,
       analysis,
     });
   } catch (error) {
     console.error('Error performing analysis:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to perform analysis';
     return NextResponse.json(
-      { error: 'Failed to perform analysis' },
+      { error: errorMessage, details: error },
       { status: 500 }
     );
   }

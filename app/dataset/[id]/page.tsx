@@ -146,7 +146,7 @@ export default function DatasetPage() {
   const runAnalysis = async (type: string) => {
     setAnalyzing(true);
     try {
-      await fetch('/api/analyze', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -154,9 +154,23 @@ export default function DatasetPage() {
           analysisType: type,
         }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(`Analysis failed: ${data.error || 'Unknown error'}`);
+        console.error('Analysis error:', data);
+        return;
+      }
+
       await fetchDataset();
+
+      // Automatically switch to insights tab after successful analysis
+      setActiveTab('insights');
+      alert(`${data.analysis.name} completed successfully!`);
     } catch (error) {
       console.error('Error running analysis:', error);
+      alert('Failed to run analysis. Please try again.');
     } finally {
       setAnalyzing(false);
     }
@@ -912,18 +926,131 @@ export default function DatasetPage() {
 
             {activeTab === 'insights' && (
               <div className="space-y-6">
-                <p className="text-gray-300 text-center">Run analysis above to view insights about your data: Outlier Detection, Trend Analysis, or Data Quality Check</p>
-                {dataset.analyses.filter(a => ['outliers', 'trends', 'quality'].includes(a.type)).map((analysis) => (
-                  <div key={analysis.id} className="border border-indigo-500/20 bg-slate-800/30 rounded-xl p-6">
-                    <h3 className="text-2xl font-bold text-white mb-4">{analysis.name}</h3>
-                    <div className="text-sm text-gray-400 mb-4">
-                      {new Date(analysis.createdAt).toLocaleString()}
-                    </div>
-                    <pre className="bg-slate-900/50 p-4 rounded-lg text-gray-300 overflow-x-auto text-sm">
-                      {JSON.stringify(analysis.results, null, 2)}
-                    </pre>
+                {dataset.analyses.filter(a => ['outliers', 'trends', 'quality'].includes(a.type)).length === 0 ? (
+                  <div className="text-center py-12">
+                    <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400 mb-2 text-lg font-semibold">No insights yet</p>
+                    <p className="text-gray-500 text-sm">Run one of the analysis tools above to generate insights about your data</p>
                   </div>
-                ))}
+                ) : (
+                  dataset.analyses
+                    .filter(a => ['outliers', 'trends', 'quality'].includes(a.type))
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map((analysis) => (
+                      <div key={analysis.id} className="border border-indigo-500/20 bg-slate-800/30 rounded-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-2xl font-bold text-white">{analysis.name}</h3>
+                          <span className="text-xs text-gray-400 bg-slate-700/50 px-3 py-1 rounded-full">
+                            {new Date(analysis.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* Render results in a user-friendly format */}
+                        <div className="space-y-4">
+                          {analysis.type === 'outliers' && analysis.results.outliers && (
+                            <div>
+                              <p className="text-gray-300 mb-3">
+                                Found outliers in <span className="font-bold text-indigo-400">{analysis.results.totalColumns}</span> columns
+                              </p>
+                              {Object.entries(analysis.results.outliers).map(([column, data]: [string, any]) => (
+                                <div key={column} className="bg-slate-900/50 p-4 rounded-lg mb-3">
+                                  <h4 className="font-semibold text-white mb-2">{column}</h4>
+                                  <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                      <span className="text-gray-400">Outliers found:</span>
+                                      <span className="text-red-400 font-bold ml-2">{data.count}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-400">Expected range:</span>
+                                      <span className="text-green-400 font-bold ml-2">{data.lowerBound} - {data.upperBound}</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2">
+                                    <span className="text-gray-400 text-sm">Sample values: </span>
+                                    <span className="text-orange-400 font-mono text-sm">{data.samples.join(', ')}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {analysis.type === 'trends' && analysis.results.trends && (
+                            <div>
+                              {Object.entries(analysis.results.trends).map(([column, data]: [string, any]) => (
+                                <div key={column} className="bg-slate-900/50 p-4 rounded-lg mb-3">
+                                  <h4 className="font-semibold text-white mb-2">{column}</h4>
+                                  <div className="grid grid-cols-3 gap-3 text-sm">
+                                    <div>
+                                      <span className="text-gray-400">Direction:</span>
+                                      <span className={`font-bold ml-2 ${
+                                        data.direction === 'increasing' ? 'text-green-400' :
+                                        data.direction === 'decreasing' ? 'text-red-400' :
+                                        'text-yellow-400'
+                                      }`}>
+                                        {data.direction.toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-400">Change:</span>
+                                      <span className="text-indigo-400 font-bold ml-2">{data.change}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-400">First avg:</span>
+                                      <span className="text-gray-300 font-bold ml-2">{data.firstAvg}</span>
+                                      <span className="text-gray-400 mx-2">→</span>
+                                      <span className="text-gray-300 font-bold">{data.secondAvg}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {analysis.type === 'quality' && analysis.results.quality && (
+                            <div>
+                              <p className="text-gray-300 mb-3">
+                                Analyzed <span className="font-bold text-indigo-400">{analysis.results.totalRows}</span> rows across all columns
+                              </p>
+                              {Object.entries(analysis.results.quality).map(([column, data]: [string, any]) => (
+                                <div key={column} className="bg-slate-900/50 p-4 rounded-lg mb-3">
+                                  <h4 className="font-semibold text-white mb-2">{column}</h4>
+                                  <div className="grid grid-cols-4 gap-3 text-sm">
+                                    <div>
+                                      <span className="text-gray-400">Total:</span>
+                                      <span className="text-blue-400 font-bold ml-2">{data.total}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-400">Missing:</span>
+                                      <span className={`font-bold ml-2 ${data.missing > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                        {data.missing} ({data.missingPercent})
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-400">Unique:</span>
+                                      <span className="text-purple-400 font-bold ml-2">{data.unique}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-400">Duplicates:</span>
+                                      <span className={`font-bold ml-2 ${data.duplicates > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                                        {data.duplicates}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Fallback for any other format */}
+                          {!['outliers', 'trends', 'quality'].includes(analysis.type) && (
+                            <pre className="bg-slate-900/50 p-4 rounded-lg text-gray-300 overflow-x-auto text-sm">
+                              {JSON.stringify(analysis.results, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                )}
               </div>
             )}
 
