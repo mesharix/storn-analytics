@@ -1,6 +1,11 @@
-# Storn Analytics - Features to Beat Power BI
+# Data Analysis Platform - Features to Beat Power BI
 
-## Why Users Would Choose Storn Analytics Over Power BI
+## 🌐 Connect With Us
+
+- 💬 **Discord**: [Join our community](https://discord.gg/vnRaKvHv)
+- 🐦 **X (Twitter)**: [Follow @mshalbogami](https://x.com/mshalbogami)
+
+## Why Users Would Choose Data Analysis Platform Over Power BI
 
 ### 1. **Instant Web Access** ✅ DONE
 - No desktop installation required
@@ -145,7 +150,7 @@
 
 ## Competitive Advantages Summary
 
-| Feature | Storn Analytics | Power BI Desktop | Power BI Pro |
+| Feature | Data Analysis Platform | Power BI Desktop | Power BI Pro |
 |---------|----------------|------------------|--------------|
 | **Cost** | FREE | FREE | $10/user/mo |
 | **Installation** | Browser only | 500MB download | Cloud only |

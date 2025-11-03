@@ -46,7 +46,7 @@ export default function LoginPage() {
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-2 shadow-lg shadow-indigo-500/40">
               <BarChart3 className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-3xl font-bold gradient-text ml-3">Storn Analytics</h1>
+            <h1 className="text-3xl font-bold gradient-text ml-3">Data Analysis</h1>
           </div>
 
           <h2 className="text-2xl font-semibold text-center text-white mb-6">

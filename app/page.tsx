@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Upload, Database, BarChart3, TrendingUp, User, LogOut } from 'lucide-react';
+import { Upload, Database, BarChart3, TrendingUp, User, LogOut, MessageSquare } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 
 interface Dataset {
@@ -66,9 +66,30 @@ export default function Home() {
               <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-xl glow-purple">
                 <BarChart3 className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-3xl font-bold gradient-text">Storn Analytics</h1>
+              <h1 className="text-3xl font-bold gradient-text">Data Analysis</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Social Media Links */}
+              <a
+                href="https://discord.gg/vnRaKvHv"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-2 bg-indigo-600 bg-opacity-50 text-white rounded-lg hover:bg-indigo-500 hover:bg-opacity-60 transition-colors border border-indigo-500"
+                title="Join our Discord"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </a>
+              <a
+                href="https://x.com/mshalbogami"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-2 bg-slate-700 bg-opacity-50 text-white rounded-lg hover:bg-slate-600 hover:bg-opacity-60 transition-colors border border-slate-600"
+                title="Follow on X"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
               {session ? (
                 <>
                   <Link

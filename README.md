@@ -1,6 +1,13 @@
-# Storn Analytics - Data Analysis Platform
+# Data Analysis Platform
 
-A powerful, full-stack data analysis web application built with Next.js 14, TypeScript, MySQL, and Prisma.
+A professional, free data analysis and visualization platform - The best alternative to Power BI.
+
+Built with Next.js 14, TypeScript, MySQL, and Prisma.
+
+## 🌐 Connect With Us
+
+- 💬 **Discord**: [Join our community](https://discord.gg/vnRaKvHv) - Get help, share ideas, and connect with other users
+- 🐦 **X (Twitter)**: [Follow @mshalbogami](https://x.com/mshalbogami) - Stay updated with the latest features and news
 
 ## Features
 
@@ -35,7 +42,7 @@ A powerful, full-stack data analysis web application built with Next.js 14, Type
 cd storn-analytics
 git init
 git add .
-git commit -m "Initial commit: Storn Analytics"
+git commit -m "Initial commit: Data Analysis Platform"
 git branch -M main
 git remote add origin YOUR_GIT_REPO_URL
 git push -u origin main
@@ -187,7 +194,7 @@ This will start both the Next.js app and MySQL database.
 ## Project Structure
 
 ```
-storn-analytics/
+data-analysis/
 ├── app/
 │   ├── api/              # API routes
 │   │   ├── datasets/     # Dataset CRUD operations
