@@ -28,12 +28,17 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Determine role - only specific email can be admin
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@stornanalytics.com';
+    const role = email === adminEmail ? 'admin' : 'user';
+
     // Create user
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
+        role,
       },
     });
 
@@ -42,6 +47,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         name: user.name,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
