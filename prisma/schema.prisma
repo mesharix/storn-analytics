@@ -68,7 +68,7 @@ model VerificationToken {
 model Dataset {
   id          String   @id @default(uuid())
   name        String
-  description String?  @db.Text
+  description String? @db.Text
   fileName    String
   fileSize    Int
   rowCount    Int
