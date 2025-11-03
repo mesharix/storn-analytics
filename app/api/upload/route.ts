@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: true,
-        encoding: 'UTF-8',
       });
       parsedData = result.data;
     } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
