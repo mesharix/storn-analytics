@@ -33,7 +33,7 @@ export function analyzeColumn(data: any[], columnName: string): ColumnStats {
   // Detect type and calculate stats
 
   // Check if column name suggests it's a date field
-  const isDateColumn = /date|time|created|ordered|purchased|تاريخ/i.test(column);
+  const isDateColumn = /date|time|created|ordered|purchased|تاريخ/i.test(columnName);
 
   // Check if values look like dates
   const dateValues = nonNullValues.filter(v => {
