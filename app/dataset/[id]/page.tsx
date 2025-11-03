@@ -91,6 +91,8 @@ export default function DatasetPage() {
   const [categoryColumn, setCategoryColumn] = useState<string>('');
   const [valueColumn, setValueColumn] = useState<string>('');
   const [aggregation, setAggregation] = useState<'sum' | 'average' | 'count' | 'min' | 'max'>('sum');
+  const [chartDateFrom, setChartDateFrom] = useState<string>('');
+  const [chartDateTo, setChartDateTo] = useState<string>('');
   const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
 
@@ -257,10 +259,36 @@ export default function DatasetPage() {
   const prepareChartData = () => {
     if (!dataset || !categoryColumn || !valueColumn) return [];
 
+    // Apply date filtering if date range is selected
+    let recordsToUse = filteredRecords;
+
+    if (chartDateFrom || chartDateTo) {
+      const dateColumn = columns.find(col => col === 'تاريخ الطلب');
+      if (dateColumn) {
+        recordsToUse = filteredRecords.filter(record => {
+          const recordDate = record.data[dateColumn];
+          if (!recordDate) return false;
+
+          const date = new Date(recordDate);
+          const fromDate = chartDateFrom ? new Date(chartDateFrom) : null;
+          const toDate = chartDateTo ? new Date(chartDateTo) : null;
+
+          if (fromDate && toDate) {
+            return date >= fromDate && date <= toDate;
+          } else if (fromDate) {
+            return date >= fromDate;
+          } else if (toDate) {
+            return date <= toDate;
+          }
+          return true;
+        });
+      }
+    }
+
     // Group by category and aggregate values
     const grouped: Record<string, number[]> = {};
 
-    filteredRecords.forEach(record => {
+    recordsToUse.forEach(record => {
       const category = String(record.data[categoryColumn] || 'Unknown');
       const value = Number(record.data[valueColumn]) || 0;
 
@@ -593,7 +621,14 @@ export default function DatasetPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {(() => {
                       // Define the desired order of columns
-                      const columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'مجموع السلة', 'تاريخ الطلب', 'اسم المنتج'];
+                      let columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'مجموع السلة', 'تاريخ الطلب', 'اسم المنتج'];
+
+                      // Remove 'مجموع السلة' if 'اجمالي الطلب' exists
+                      if (columns.includes('اجمالي الطلب')) {
+                        columnOrder = columnOrder.filter(col => col !== 'مجموع السلة');
+                        // Add 'اجمالي الطلب' in the same position
+                        columnOrder.splice(3, 0, 'اجمالي الطلب');
+                      }
 
                       // Filter columns to only include those that exist in the data and match our order
                       const orderedColumns = columnOrder.filter(col => columns.includes(col));
@@ -695,7 +730,7 @@ export default function DatasetPage() {
                                   <option key={val} value={val}>{String(val)}</option>
                                 ))}
                               </select>
-                            ) : skipOperatorDropdown || column === 'مجموع السلة' ? (
+                            ) : skipOperatorDropdown || column === 'مجموع السلة' || column === 'اجمالي الطلب' ? (
                               <input
                                 type="text"
                                 placeholder={`Filter ${displayName}...`}
@@ -871,11 +906,55 @@ export default function DatasetPage() {
                     </div>
                   </div>
 
+                  {/* Date Range Filter */}
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">From Date (Optional)</label>
+                      <input
+                        type="date"
+                        value={chartDateFrom}
+                        onChange={(e) => setChartDateFrom(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Filter data from this date</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">To Date (Optional)</label>
+                      <input
+                        type="date"
+                        value={chartDateTo}
+                        onChange={(e) => setChartDateTo(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Filter data until this date</p>
+                    </div>
+                  </div>
+
+                  {/* Clear Date Range Button */}
+                  {(chartDateFrom || chartDateTo) && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => {
+                          setChartDateFrom('');
+                          setChartDateTo('');
+                        }}
+                        className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+                      >
+                        Clear date range
+                      </button>
+                    </div>
+                  )}
+
                   {/* Chart Description */}
                   {categoryColumn && valueColumn && (
                     <div className="mt-4 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
                       <p className="text-sm text-indigo-300">
                         <span className="font-semibold">Chart:</span> {aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of <span className="font-semibold">{valueColumn}</span> grouped by <span className="font-semibold">{categoryColumn}</span>
+                        {(chartDateFrom || chartDateTo) && (
+                          <span className="ml-2">
+                            ({chartDateFrom && `from ${chartDateFrom}`}{chartDateFrom && chartDateTo && ' '}{chartDateTo && `to ${chartDateTo}`})
+                          </span>
+                        )}
                       </p>
                     </div>
                   )}
