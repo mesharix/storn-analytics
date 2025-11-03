@@ -214,7 +214,7 @@ export default function DatasetPage() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        {Object.keys(dataset.records[0].data).map((key) => (
+                        {Object.keys(dataset.records[0].data as Record<string, any>).map((key) => (
                           <th
                             key={key}
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -227,7 +227,7 @@ export default function DatasetPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {dataset.records.slice(0, 100).map((record, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          {Object.values(record.data).map((value: any, i) => (
+                          {Object.values(record.data as Record<string, any>).map((value: any, i) => (
                             <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {value?.toString() || '-'}
                             </td>

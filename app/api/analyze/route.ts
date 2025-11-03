@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         datasetId,
         name: analysisName,
         type: analysisType,
-        results,
+        results: results as any,
       },
     });
 

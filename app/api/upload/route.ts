@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         fileName,
         fileSize,
         rowCount: analysis.rowCount,
-        columnCount: analysis.columnCount,
+        columnCount: analysis.columnCount || 0,
         records: {
           create: parsedData.map(row => ({
             data: row,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
             type: 'summary',
             results: {
               columnStats: analysis.columnStats,
-            },
+            } as any,
           },
         },
       },
