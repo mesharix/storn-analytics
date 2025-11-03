@@ -416,14 +416,10 @@ export function detectEcommerceColumns(data: DataRow[]) {
     if (patterns.country.test(lower)) detected.countryColumn = col;
   });
 
-  // Fallback: If no customer column found, use payment method or city as customer identifier
-  // Priority: payment method > city
-  if (!detected.customerColumn) {
-    if (detected.paymentColumn) {
-      detected.customerColumn = detected.paymentColumn;
-    } else if (detected.cityColumn) {
-      detected.customerColumn = detected.cityColumn;
-    }
+  // Fallback: If no customer column found, use city as customer identifier
+  // This allows RFM and cohort analysis to work by analyzing cities as customer segments
+  if (!detected.customerColumn && detected.cityColumn) {
+    detected.customerColumn = detected.cityColumn;
   }
 
   return detected;
@@ -453,18 +449,11 @@ export function cleanEcommerceData(data: DataRow[], detectedColumns: Record<stri
       }
     }
 
-    // Fill blank city and country fields with defaults
+    // Fill blank city fields with "N/A"
     if (detectedColumns.cityColumn) {
       const cityValue = cleanedRow[detectedColumns.cityColumn];
-      if (!cityValue || cityValue === '' || cityValue === null || cityValue === undefined || cityValue === 'N/A') {
-        cleanedRow[detectedColumns.cityColumn] = 'Riyadh';
-      }
-    }
-
-    if (detectedColumns.countryColumn) {
-      const countryValue = cleanedRow[detectedColumns.countryColumn];
-      if (!countryValue || countryValue === '' || countryValue === null || countryValue === undefined || countryValue === 'N/A') {
-        cleanedRow[detectedColumns.countryColumn] = 'Saudi Arabia';
+      if (!cityValue || cityValue === '' || cityValue === null || cityValue === undefined) {
+        cleanedRow[detectedColumns.cityColumn] = 'N/A';
       }
     }
 

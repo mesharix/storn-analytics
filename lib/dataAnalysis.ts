@@ -31,52 +31,28 @@ export function analyzeColumn(data: any[], columnName: string): ColumnStats {
   };
 
   // Detect type and calculate stats
+  const numericValues = nonNullValues
+    .map(v => parseFloat(v))
+    .filter(v => !isNaN(v));
 
-  // Check if column name suggests it's a date field
-  const isDateColumn = /date|time|created|ordered|purchased|تاريخ/i.test(columnName);
+  if (numericValues.length > nonNullValues.length * 0.8) {
+    // Mostly numeric
+    stats.type = 'numeric';
+    stats.min = Math.min(...numericValues);
+    stats.max = Math.max(...numericValues);
+    stats.mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
 
-  // Check if values look like dates
-  const dateValues = nonNullValues.filter(v => {
-    const str = String(v);
-    // Check for common date patterns: YYYY-MM-DD, DD/MM/YYYY, timestamps, etc.
-    return /^\d{4}-\d{2}-\d{2}/.test(str) ||
-           /^\d{2}\/\d{2}\/\d{4}/.test(str) ||
-           /^\d{2}-\d{2}-\d{4}/.test(str) ||
-           !isNaN(Date.parse(str));
-  });
+    const sorted = [...numericValues].sort((a, b) => a - b);
+    stats.median = sorted[Math.floor(sorted.length / 2)];
 
-  if (isDateColumn || dateValues.length > nonNullValues.length * 0.7) {
-    // Date column
-    stats.type = 'date';
+    const variance = numericValues.reduce((sum, val) => sum + Math.pow(val - stats.mean!, 2), 0) / numericValues.length;
+    stats.stdDev = Math.sqrt(variance);
+  } else {
+    // Text data
     const lengths = nonNullValues.map(v => String(v).length);
     stats.minLength = Math.min(...lengths);
     stats.maxLength = Math.max(...lengths);
     stats.avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-  } else {
-    // Check for numeric values
-    const numericValues = nonNullValues
-      .map(v => parseFloat(v))
-      .filter(v => !isNaN(v));
-
-    if (numericValues.length > nonNullValues.length * 0.8) {
-      // Mostly numeric
-      stats.type = 'numeric';
-      stats.min = Math.min(...numericValues);
-      stats.max = Math.max(...numericValues);
-      stats.mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
-
-      const sorted = [...numericValues].sort((a, b) => a - b);
-      stats.median = sorted[Math.floor(sorted.length / 2)];
-
-      const variance = numericValues.reduce((sum, val) => sum + Math.pow(val - stats.mean!, 2), 0) / numericValues.length;
-      stats.stdDev = Math.sqrt(variance);
-    } else {
-      // Text data
-      const lengths = nonNullValues.map(v => String(v).length);
-      stats.minLength = Math.min(...lengths);
-      stats.maxLength = Math.max(...lengths);
-      stats.avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-    }
   }
 
   return stats;
