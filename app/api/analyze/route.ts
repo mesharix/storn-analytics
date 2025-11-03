@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       case 'correlation':
         analysisName = 'Correlation Analysis';
         results = {
-          correlations: findCorrelations(data, 0.5),
+          correlations: findCorrelations(data, 0.3), // Lower threshold to show more relationships
         };
         break;
 
