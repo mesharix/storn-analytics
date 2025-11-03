@@ -3,10 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  ArrowLeft, Table2, BarChart3, TrendingUp, Loader2,
-  Download, Filter, PieChart, ScatterChart, Grid3X3
-} from 'lucide-react';
+import { ArrowLeft, Table2, BarChart3, TrendingUp, Loader2 } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -18,14 +15,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  PieChart as RePieChart,
-  Pie,
-  Cell,
-  ScatterChart as ReScatterChart,
-  Scatter,
-  ZAxis,
 } from 'recharts';
-import * as XLSX from 'xlsx';
 
 interface ColumnStat {
   column: string;
@@ -60,66 +50,28 @@ interface Dataset {
   analyses: Analysis[];
 }
 
-const CHART_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
-
 export default function DatasetPage() {
   const params = useParams();
   const router = useRouter();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'correlations' | 'charts'>('data');
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'scatter'>('bar');
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
+  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'correlations'>('data');
 
   useEffect(() => {
     fetchDataset();
   }, [params.id]);
-
-  useEffect(() => {
-    if (dataset) {
-      applyFilters();
-    }
-  }, [filters, dataset]);
 
   const fetchDataset = async () => {
     try {
       const res = await fetch(`/api/datasets/${params.id}`);
       const data = await res.json();
       setDataset(data);
-      setFilteredRecords(data.records);
-
-      // Auto-select first two numeric columns for charts
-      const summaryAnalysis = data.analyses.find((a: Analysis) => a.type === 'summary');
-      if (summaryAnalysis) {
-        const numericCols = summaryAnalysis.results.columnStats
-          .filter((stat: ColumnStat) => stat.type === 'numeric')
-          .map((stat: ColumnStat) => stat.column)
-          .slice(0, 2);
-        setSelectedColumns(numericCols);
-      }
     } catch (error) {
       console.error('Error fetching dataset:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const applyFilters = () => {
-    if (!dataset) return;
-
-    let filtered = dataset.records;
-    Object.entries(filters).forEach(([column, value]) => {
-      if (value) {
-        filtered = filtered.filter(record => {
-          const recordValue = String(record.data[column] || '').toLowerCase();
-          return recordValue.includes(value.toLowerCase());
-        });
-      }
-    });
-    setFilteredRecords(filtered);
   };
 
   const runAnalysis = async (type: string) => {
@@ -139,165 +91,6 @@ export default function DatasetPage() {
     } finally {
       setAnalyzing(false);
     }
-  };
-
-  // Export Functions
-  const exportToCSV = () => {
-    if (!dataset) return;
-
-    const records = filteredRecords.map(r => r.data);
-    const headers = Object.keys(records[0] || {});
-
-    let csv = headers.join(',') + '\n';
-    records.forEach(record => {
-      csv += headers.map(header => {
-        const value = record[header];
-        return typeof value === 'string' && value.includes(',')
-          ? `"${value}"`
-          : value;
-      }).join(',') + '\n';
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const exportToExcel = () => {
-    if (!dataset) return;
-
-    const records = filteredRecords.map(r => r.data);
-    const ws = XLSX.utils.json_to_sheet(records);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Data');
-
-    // Add statistics sheet if available
-    const summaryAnalysis = dataset.analyses.find(a => a.type === 'summary');
-    if (summaryAnalysis?.results?.columnStats) {
-      const statsWs = XLSX.utils.json_to_sheet(summaryAnalysis.results.columnStats);
-      XLSX.utils.book_append_sheet(wb, statsWs, 'Statistics');
-    }
-
-    XLSX.writeFile(wb, `${dataset.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  // Chart Data Preparation
-  const prepareChartData = () => {
-    if (!dataset || selectedColumns.length === 0) return [];
-
-    return filteredRecords.slice(0, 100).map((record, idx) => {
-      const dataPoint: any = { index: idx };
-      selectedColumns.forEach(col => {
-        dataPoint[col] = Number(record.data[col]) || 0;
-      });
-      return dataPoint;
-    });
-  };
-
-  const preparePieData = () => {
-    if (!dataset || selectedColumns.length === 0) return [];
-
-    const column = selectedColumns[0];
-    const valueCounts: Record<string, number> = {};
-
-    filteredRecords.forEach(record => {
-      const value = String(record.data[column] || 'Unknown');
-      valueCounts[value] = (valueCounts[value] || 0) + 1;
-    });
-
-    return Object.entries(valueCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([name, value]) => ({ name, value }));
-  };
-
-  const renderChart = () => {
-    const data = prepareChartData();
-
-    if (chartType === 'pie') {
-      const pieData = preparePieData();
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <RePieChart>
-            <Pie
-              data={pieData}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={150}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
-            <Legend />
-          </RePieChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    if (chartType === 'scatter' && selectedColumns.length >= 2) {
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <ReScatterChart>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey={selectedColumns[0]} stroke="#9ca3af" name={selectedColumns[0]} />
-            <YAxis dataKey={selectedColumns[1]} stroke="#9ca3af" name={selectedColumns[1]} />
-            <ZAxis range={[60, 400]} />
-            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} cursor={{strokeDasharray: '3 3'}} />
-            <Legend />
-            <Scatter name="Data Points" data={data} fill="#6366f1" />
-          </ReScatterChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    if (chartType === 'line') {
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey="index" stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
-            <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
-            <Legend />
-            {selectedColumns.map((col, idx) => (
-              <Line
-                key={col}
-                type="monotone"
-                dataKey={col}
-                stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-                strokeWidth={2}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    // Default: Bar Chart
-    return (
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="index" stroke="#9ca3af" />
-          <YAxis stroke="#9ca3af" />
-          <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
-          <Legend />
-          {selectedColumns.map((col, idx) => (
-            <Bar key={col} dataKey={col} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
-    );
   };
 
   if (loading) {
@@ -326,7 +119,6 @@ export default function DatasetPage() {
   const summaryAnalysis = dataset.analyses.find(a => a.type === 'summary');
   const columnStats: ColumnStat[] = summaryAnalysis?.results?.columnStats || [];
   const correlationAnalysis = dataset.analyses.find(a => a.type === 'correlation');
-  const columns = dataset.records.length > 0 ? Object.keys(dataset.records[0].data as Record<string, any>) : [];
 
   return (
     <div className="min-h-screen animated-bg">
@@ -346,32 +138,11 @@ export default function DatasetPage() {
                 <p className="text-gray-400 mt-2 text-lg">{dataset.description}</p>
               )}
             </div>
-
-            {/* Export Buttons */}
-            <div className="flex space-x-3">
-              <button
-                onClick={exportToCSV}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-lg"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Excel
-              </button>
-            </div>
           </div>
           <div className="flex items-center space-x-6 mt-6">
             <div className="bg-blue-500/20 border border-blue-500/30 px-4 py-2 rounded-xl">
-              <span className="text-blue-300 font-semibold">{filteredRecords.length.toLocaleString()}</span>
+              <span className="text-blue-300 font-semibold">{dataset.rowCount.toLocaleString()}</span>
               <span className="text-blue-400 text-sm ml-1">rows</span>
-              {filteredRecords.length !== dataset.rowCount && (
-                <span className="text-xs text-gray-400 ml-2">(filtered from {dataset.rowCount.toLocaleString()})</span>
-              )}
             </div>
             <div className="bg-purple-500/20 border border-purple-500/30 px-4 py-2 rounded-xl">
               <span className="text-purple-300 font-semibold">{dataset.columnCount}</span>
@@ -470,20 +241,6 @@ export default function DatasetPage() {
                 )}
               </button>
               <button
-                onClick={() => setActiveTab('charts')}
-                className={`px-8 py-5 font-bold text-sm transition-all relative ${
-                  activeTab === 'charts'
-                    ? 'text-indigo-400'
-                    : 'text-gray-400 hover:text-gray-300 hover:bg-slate-700/30'
-                }`}
-              >
-                <PieChart className="w-5 h-5 inline mr-2" />
-                Charts
-                {activeTab === 'charts' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
-                )}
-              </button>
-              <button
                 onClick={() => setActiveTab('correlations')}
                 className={`px-8 py-5 font-bold text-sm transition-all relative ${
                   activeTab === 'correlations'
@@ -502,132 +259,39 @@ export default function DatasetPage() {
 
           <div className="p-6">
             {activeTab === 'data' && (
-              <div>
-                {/* Filters */}
-                <div className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-indigo-500/30">
-                  <div className="flex items-center mb-3">
-                    <Filter className="w-5 h-5 text-indigo-400 mr-2" />
-                    <h3 className="text-lg font-semibold text-white">Filters</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {columns.slice(0, 8).map(column => (
-                      <div key={column}>
-                        <label className="block text-sm text-gray-400 mb-1">{column}</label>
-                        <input
-                          type="text"
-                          placeholder={`Filter ${column}...`}
-                          value={filters[column] || ''}
-                          onChange={(e) => setFilters({...filters, [column]: e.target.value})}
-                          className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {Object.values(filters).some(v => v) && (
-                    <button
-                      onClick={() => setFilters({})}
-                      className="mt-3 text-sm text-indigo-400 hover:text-indigo-300"
-                    >
-                      Clear all filters
-                    </button>
-                  )}
-                </div>
-
-                <div className="overflow-x-auto">
-                  {filteredRecords.length > 0 && (
-                    <table className="min-w-full divide-y divide-indigo-500/20">
-                      <thead className="bg-slate-800/50">
-                        <tr>
-                          {Object.keys(filteredRecords[0].data as Record<string, any>).map((key) => (
-                            <th
-                              key={key}
-                              className="px-6 py-3 text-left text-xs font-medium text-indigo-300 uppercase tracking-wider"
-                            >
-                              {key}
-                            </th>
+              <div className="overflow-x-auto">
+                {dataset.records.length > 0 && (
+                  <table className="min-w-full divide-y divide-indigo-500/20">
+                    <thead className="bg-slate-800/50">
+                      <tr>
+                        {Object.keys(dataset.records[0].data as Record<string, any>).map((key) => (
+                          <th
+                            key={key}
+                            className="px-6 py-3 text-left text-xs font-medium text-indigo-300 uppercase tracking-wider"
+                          >
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-indigo-500/10">
+                      {dataset.records.slice(0, 100).map((record, idx) => (
+                        <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
+                          {Object.values(record.data as Record<string, any>).map((value: any, i) => (
+                            <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                              {value?.toString() || '-'}
+                            </td>
                           ))}
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-indigo-500/10">
-                        {filteredRecords.slice(0, 100).map((record, idx) => (
-                          <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
-                            {Object.values(record.data as Record<string, any>).map((value: any, i) => (
-                              <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {value?.toString() || '-'}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {filteredRecords.length > 100 && (
-                    <p className="text-sm text-gray-400 mt-4">
-                      Showing first 100 rows of {filteredRecords.length.toLocaleString()}
-                    </p>
-                  )}
-                  {filteredRecords.length === 0 && (
-                    <p className="text-center text-gray-400 py-8">No records match the current filters</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'charts' && (
-              <div>
-                <div className="mb-6 flex flex-wrap items-center gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Chart Type</label>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setChartType('bar')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'bar' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
-                      >
-                        <BarChart3 className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('line')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'line' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
-                      >
-                        <TrendingUp className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('pie')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'pie' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
-                      >
-                        <PieChart className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => setChartType('scatter')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'scatter' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
-                      >
-                        <ScatterChart className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex-1">
-                    <label className="block text-sm text-gray-400 mb-2">Select Columns</label>
-                    <select
-                      multiple
-                      value={selectedColumns}
-                      onChange={(e) => setSelectedColumns(Array.from(e.target.selectedOptions, option => option.value))}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white"
-                      size={3}
-                    >
-                      {columnStats.filter(stat => stat.type === 'numeric').map(stat => (
-                        <option key={stat.column} value={stat.column}>{stat.column}</option>
                       ))}
-                    </select>
-                    <p className="text-xs text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple columns</p>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900/50 rounded-lg p-6">
-                  {selectedColumns.length > 0 ? renderChart() : (
-                    <p className="text-center text-gray-400 py-12">Select columns to visualize data</p>
-                  )}
-                </div>
+                    </tbody>
+                  </table>
+                )}
+                {dataset.records.length > 100 && (
+                  <p className="text-sm text-gray-400 mt-4">
+                    Showing first 100 rows of {dataset.rowCount.toLocaleString()}
+                  </p>
+                )}
               </div>
             )}
 
