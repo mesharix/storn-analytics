@@ -52,6 +52,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
+# Copy startup script
+COPY --chown=nextjs:nodejs start.sh ./
+RUN chmod +x start.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -60,4 +64,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Start the application
-CMD ["sh", "-c", "node server.js"]
+CMD ["./start.sh"]
