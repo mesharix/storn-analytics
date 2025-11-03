@@ -19,7 +19,7 @@ export interface ColumnStats {
 }
 
 export function analyzeColumn(data: any[], columnName: string): ColumnStats {
-  const values = data.map(row => row[columnName]);
+  const values = data.map(row => (row as any)[columnName]);
   const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
 
   const stats: ColumnStats = {
@@ -60,10 +60,10 @@ export function analyzeColumn(data: any[], columnName: string): ColumnStats {
 
 export function analyzeDataset(data: any[]) {
   if (!data || data.length === 0) {
-    return { columnStats: [], rowCount: 0 };
+    return { columnStats: [], rowCount: 0, columnCount: 0 };
   }
 
-  const columns = Object.keys(data[0]);
+  const columns = Object.keys(data[0] as Record<string, any>);
   const columnStats = columns.map(col => analyzeColumn(data, col));
 
   return {
@@ -80,8 +80,8 @@ export interface CorrelationResult {
 }
 
 export function calculateCorrelation(data: any[], col1: string, col2: string): number {
-  const values1 = data.map(row => parseFloat(row[col1])).filter(v => !isNaN(v));
-  const values2 = data.map(row => parseFloat(row[col2])).filter(v => !isNaN(v));
+  const values1 = data.map(row => parseFloat((row as any)[col1])).filter(v => !isNaN(v));
+  const values2 = data.map(row => parseFloat((row as any)[col2])).filter(v => !isNaN(v));
 
   if (values1.length !== values2.length || values1.length === 0) {
     return 0;
@@ -107,9 +107,9 @@ export function calculateCorrelation(data: any[], col1: string, col2: string): n
 export function findCorrelations(data: any[], threshold: number = 0.7): CorrelationResult[] {
   if (!data || data.length === 0) return [];
 
-  const columns = Object.keys(data[0]);
+  const columns = Object.keys(data[0] as Record<string, any>);
   const numericColumns = columns.filter(col => {
-    const values = data.map(row => parseFloat(row[col]));
+    const values = data.map(row => parseFloat((row as any)[col]));
     const validCount = values.filter(v => !isNaN(v)).length;
     return validCount > data.length * 0.8;
   });
