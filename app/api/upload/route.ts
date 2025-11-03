@@ -81,10 +81,12 @@ export async function POST(request: NextRequest) {
     parsedData = parsedData.map(row => {
       const transformedRow = { ...row };
 
-      // Rule 1: Clean product name - Remove SKU and Qty patterns
-      const productColumn = 'اسماء المنتجات مع SKU';
-      if (transformedRow[productColumn] && typeof transformedRow[productColumn] === 'string') {
-        let cleanProduct = transformedRow[productColumn]
+      // Rule 1: Clean product name - Remove SKU and Qty patterns, and rename column
+      const oldProductColumn = 'اسماء المنتجات مع SKU';
+      const newProductColumn = 'اسم المنتج';
+
+      if (transformedRow[oldProductColumn] && typeof transformedRow[oldProductColumn] === 'string') {
+        let cleanProduct = transformedRow[oldProductColumn]
           .replace(/\s*-\s*SKU[:\s]*.*/i, '')     // Remove " - SKU: xxx"
           .replace(/\s*\(SKU[:\s]*.*?\)/i, '')    // Remove " (SKU: xxx)"
           .replace(/\s*SKU[:\s]*.*/i, '')         // Remove " SKU: xxx"
@@ -92,7 +94,10 @@ export async function POST(request: NextRequest) {
           .replace(/\s*Qty[:\s]*.*/i, '')         // Remove " Qty: 1"
           .replace(/\s*-\s*\d+\s*$/, '')          // Remove trailing " - 123"
           .trim();
-        transformedRow[productColumn] = cleanProduct;
+
+        // Store in new column name and delete old column
+        transformedRow[newProductColumn] = cleanProduct;
+        delete transformedRow[oldProductColumn];
       }
 
       // Rule 2: If payment method is Saudi-based AND both city and country are blank, set defaults

@@ -374,7 +374,7 @@ export function detectEcommerceColumns(data: DataRow[]) {
   const arabicMappings: Record<string, string> = {
     'تاريخ الطلب': 'dateColumn',
     'اجمالي الطلب': 'revenueColumn',
-    'اسماء المنتجات مع SKU': 'productColumn',
+    'اسم المنتج': 'productColumn',
     'طريقة الدفع': 'paymentColumn',
     'الضريبة': 'vatColumn',
     'المدينة': 'cityColumn',

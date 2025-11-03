@@ -588,7 +588,7 @@ export default function DatasetPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {(() => {
                       // Define the desired order of columns
-                      const columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'مجموع السلة', 'تاريخ الطلب', 'اسماء المنتجات مع SKU'];
+                      const columnOrder = ['الدولة', 'المدينة', 'طريقة الدفع', 'مجموع السلة', 'تاريخ الطلب', 'اسم المنتج'];
 
                       // Filter columns to only include those that exist in the data and match our order
                       const orderedColumns = columnOrder.filter(col => columns.includes(col));
@@ -598,16 +598,16 @@ export default function DatasetPage() {
                         const currentFilter = filters[column] || { operator: 'equals', value: '' };
 
                         // Check if this column should skip the operator dropdown
-                        const skipOperatorDropdown = ['الدولة', 'اسماء المنتجات مع SKU', 'طريقة الدفع', 'المدينة'].includes(column);
+                        const skipOperatorDropdown = ['الدولة', 'اسم المنتج', 'طريقة الدفع', 'المدينة'].includes(column);
 
                         // Columns that should only show dropdown (no search input)
-                        const dropdownOnly = ['الدولة', 'المدينة', 'طريقة الدفع', 'اسماء المنتجات مع SKU'].includes(column);
+                        const dropdownOnly = ['الدولة', 'المدينة', 'طريقة الدفع', 'اسم المنتج'].includes(column);
 
                         // Special handling for date column
                         const isDateColumn = column === 'تاريخ الطلب';
 
                         // Map column display names
-                        const displayName = column === 'اسماء المنتجات مع SKU' ? 'اسم المنتج' : column;
+                        const displayName = column;
 
                       return (
                         <div key={column} className="bg-slate-900/50 p-3 rounded-lg">
