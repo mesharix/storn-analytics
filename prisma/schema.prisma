@@ -1,0 +1,49 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Dataset {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  fileName    String
+  fileSize    Int
+  rowCount    Int
+  columnCount Int
+  uploadedAt  DateTime @default(now())
+  records     Record[]
+  analyses    Analysis[]
+
+  @@map("datasets")
+}
+
+model Record {
+  id        String   @id @default(uuid())
+  datasetId String
+  data      Json
+  createdAt DateTime @default(now())
+  dataset   Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
+  @@map("records")
+}
+
+model Analysis {
+  id          String   @id @default(uuid())
+  datasetId   String
+  name        String
+  type        String   // e.g., "summary", "correlation", "distribution"
+  results     Json
+  createdAt   DateTime @default(now())
+  dataset     Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
+  @@map("analyses")
+}
