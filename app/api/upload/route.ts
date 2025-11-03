@@ -93,6 +93,8 @@ export async function POST(request: NextRequest) {
           .replace(/\s*\(Qty[:\s]*.*?\)/i, '')    // Remove " (Qty: 1)"
           .replace(/\s*Qty[:\s]*.*/i, '')         // Remove " Qty: 1"
           .replace(/\s*-\s*\d+\s*$/, '')          // Remove trailing " - 123"
+          .replace(/[()]/g, '')                    // Remove all parentheses
+          .replace(/['"]/g, '')                    // Remove all apostrophes and quotes
           .trim();
 
         // Store in new column name and delete old column

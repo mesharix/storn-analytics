@@ -443,6 +443,8 @@ export function cleanEcommerceData(data: DataRow[], detectedColumns: Record<stri
           .replace(/\s*\(Qty[:\s]*.*?\)/i, '')    // Remove " (Qty: 1)"
           .replace(/\s*Qty[:\s]*.*/i, '')         // Remove " Qty: 1"
           .replace(/\s*-\s*\d+\s*$/, '')          // Remove trailing " - 123"
+          .replace(/[()]/g, '')                    // Remove all parentheses
+          .replace(/['"]/g, '')                    // Remove all apostrophes and quotes
           .trim();
 
         cleanedRow[detectedColumns.productColumn] = cleanProduct;
