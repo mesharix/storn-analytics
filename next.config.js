@@ -9,10 +9,8 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/**/*': ['./node_modules/@prisma/client/**/*', './node_modules/.prisma/**/*'],
   },
-  // Ensure environment variables are available at runtime
-  serverRuntimeConfig: {
-    DATABASE_URL: process.env.DATABASE_URL,
-  },
+  // Ensure static assets are properly served
+  assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX || undefined,
 }
 
 module.exports = nextConfig
