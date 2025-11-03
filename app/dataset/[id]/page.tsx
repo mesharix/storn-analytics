@@ -600,11 +600,14 @@ export default function DatasetPage() {
                         // Check if this column should skip the operator dropdown
                         const skipOperatorDropdown = ['الدولة', 'اسماء المنتجات مع SKU', 'طريقة الدفع', 'المدينة'].includes(column);
 
-                        // First 3 columns should only show dropdown (no search input)
-                        const dropdownOnly = ['الدولة', 'المدينة', 'طريقة الدفع'].includes(column);
+                        // Columns that should only show dropdown (no search input)
+                        const dropdownOnly = ['الدولة', 'المدينة', 'طريقة الدفع', 'اسماء المنتجات مع SKU'].includes(column);
+
+                        // Special handling for date column
+                        const isDateColumn = column === 'تاريخ الطلب';
 
                         // Map column display names
-                        const displayName = column === 'الضريبة' ? 'اسماء المنتجات مع SKU' : column;
+                        const displayName = column === 'اسماء المنتجات مع SKU' ? 'اسم المنتج' : column;
 
                       return (
                         <div key={column} className="bg-slate-900/50 p-3 rounded-lg">
@@ -627,7 +630,30 @@ export default function DatasetPage() {
                               </select>
                             )}
 
-                            {!skipOperatorDropdown && currentFilter.operator === 'between' ? (
+                            {isDateColumn ? (
+                              <div className="flex space-x-2">
+                                <input
+                                  type="date"
+                                  placeholder="From"
+                                  value={currentFilter.value || ''}
+                                  onChange={(e) => setFilters({
+                                    ...filters,
+                                    [column]: { ...currentFilter, operator: 'between', value: e.target.value }
+                                  })}
+                                  className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <input
+                                  type="date"
+                                  placeholder="To"
+                                  value={currentFilter.value2 || ''}
+                                  onChange={(e) => setFilters({
+                                    ...filters,
+                                    [column]: { ...currentFilter, operator: 'between', value2: e.target.value }
+                                  })}
+                                  className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                                />
+                              </div>
+                            ) : !skipOperatorDropdown && currentFilter.operator === 'between' ? (
                               <div className="flex space-x-2">
                                 <input
                                   type="text"
