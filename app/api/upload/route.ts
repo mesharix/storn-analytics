@@ -3,9 +3,32 @@ import { prisma } from '@/lib/prisma';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { analyzeDataset } from '@/lib/dataAnalysis';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please sign in to upload datasets.' },
+        { status: 401 }
+      );
+    }
+
+    // Get user from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const name = formData.get('name') as string;
@@ -64,6 +87,8 @@ export async function POST(request: NextRequest) {
         fileSize,
         rowCount: analysis.rowCount,
         columnCount: analysis.columnCount || 0,
+        userId: user.id,
+        isPublic: false,
         records: {
           create: parsedData.map(row => ({
             data: row,

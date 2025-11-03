@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Upload, Database, BarChart3, TrendingUp } from 'lucide-react';
+import { Upload, Database, BarChart3, TrendingUp, User, LogOut } from 'lucide-react';
+import { useSession, signOut } from 'next-auth/react';
 
 interface Dataset {
   id: string;
@@ -18,6 +19,7 @@ interface Dataset {
 }
 
 export default function Home() {
+  const { data: session, status } = useSession();
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,13 +66,47 @@ export default function Home() {
               <BarChart3 className="w-8 h-8 text-indigo-600" />
               <h1 className="text-3xl font-bold text-gray-900">Storn Analytics</h1>
             </div>
-            <Link
-              href="/upload"
-              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Data
-            </Link>
+            <div className="flex items-center space-x-4">
+              {session ? (
+                <>
+                  <Link
+                    href="/upload"
+                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Data
+                  </Link>
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 text-gray-700">
+                      <User className="w-5 h-5" />
+                      <span className="text-sm font-medium">{session.user?.name || session.user?.email}</span>
+                    </div>
+                    <button
+                      onClick={() => signOut()}
+                      className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
