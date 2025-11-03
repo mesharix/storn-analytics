@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = dataset.records.map(r => r.data);
+    const data = dataset.records.map(r => r.data) as any[];
     console.log('Dataset loaded:', { recordCount: data.length, columns: data.length > 0 && data[0] ? Object.keys(data[0] as Record<string, any>) : [] });
 
     let results: any = {};
