@@ -55,6 +55,9 @@ interface ColumnStat {
   mean?: number;
   median?: number;
   stdDev?: number;
+  minLength?: number;
+  maxLength?: number;
+  avgLength?: number;
 }
 
 interface Analysis {
