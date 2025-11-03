@@ -92,30 +92,39 @@ export default function UploadPage() {
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <Link
             href="/"
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-700 mb-2"
+            className="inline-flex items-center text-indigo-600 hover:text-indigo-700 mb-4 font-medium transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Upload Dataset</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Upload Dataset</h1>
+          <p className="text-gray-600 mt-2">Transform your data into actionable insights</p>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select File
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-indigo-400 transition-colors">
-                <div className="space-y-1 text-center">
-                  <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
+              <div className={`mt-1 flex justify-center px-6 pt-8 pb-8 border-2 border-dashed rounded-2xl transition-all duration-300 ${
+                file
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+              }`}>
+                <div className="space-y-2 text-center">
+                  <div className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors ${
+                    file ? 'bg-indigo-500' : 'bg-gray-100'
+                  }`}>
+                    <FileSpreadsheet className={`w-8 h-8 ${file ? 'text-white' : 'text-gray-400'}`} />
+                  </div>
                   <div className="flex text-sm text-gray-600">
                     <label
                       htmlFor="file-upload"
-                      className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"
+                      className="relative cursor-pointer rounded-md font-semibold text-indigo-600 hover:text-indigo-500 transition-colors"
                     >
                       <span>Upload a file</span>
                       <input
@@ -131,9 +140,12 @@ export default function UploadPage() {
                   </div>
                   <p className="text-xs text-gray-500">CSV, XLSX, XLS up to 10MB</p>
                   {file && (
-                    <p className="text-sm text-indigo-600 font-medium mt-2">
-                      Selected: {file.name}
-                    </p>
+                    <div className="mt-4 p-3 bg-white rounded-lg shadow-sm border border-indigo-200">
+                      <p className="text-sm text-indigo-700 font-medium">
+                        <span className="text-green-600">✓</span> {file.name}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -179,29 +191,26 @@ export default function UploadPage() {
             )}
 
             {/* Submit Button */}
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-4 pt-6">
               <Link
                 href="/"
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-all font-medium"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={uploading || !file}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors inline-flex items-center"
+                className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all inline-flex items-center shadow-lg transform hover:scale-105 font-semibold"
               >
                 {uploading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     Uploading...
                   </>
                 ) : (
                   <>
-                    <Upload className="w-4 h-4 mr-2" />
+                    <Upload className="w-5 h-5 mr-2" />
                     Upload Dataset
                   </>
                 )}
@@ -211,16 +220,39 @@ export default function UploadPage() {
         </div>
 
         {/* Info Box */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">Supported File Formats</h3>
-          <ul className="space-y-2 text-sm text-blue-800">
-            <li>• CSV (Comma-Separated Values)</li>
-            <li>• XLSX (Excel 2007+)</li>
-            <li>• XLS (Excel 97-2003)</li>
-          </ul>
-          <p className="mt-4 text-sm text-blue-700">
-            Your data will be automatically analyzed for statistics, correlations, and distributions.
-          </p>
+        <div className="mt-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 shadow-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <div className="bg-blue-500 rounded-xl p-3">
+                <FileSpreadsheet className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-xl font-bold text-blue-900 mb-3">Supported File Formats</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <p className="font-semibold text-blue-900">CSV</p>
+                  <p className="text-xs text-gray-600">Comma-Separated Values</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <p className="font-semibold text-blue-900">XLSX</p>
+                  <p className="text-xs text-gray-600">Excel 2007+</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <p className="font-semibold text-blue-900">XLS</p>
+                  <p className="text-xs text-gray-600">Excel 97-2003</p>
+                </div>
+              </div>
+              <div className="bg-white bg-opacity-60 rounded-lg p-4 border border-blue-200">
+                <p className="text-sm text-blue-800 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Your data will be automatically analyzed for statistics, correlations, and distributions.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
