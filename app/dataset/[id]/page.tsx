@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Table2, BarChart3, TrendingUp, Loader2,
-  Download, Filter, PieChart, ScatterChart, Grid3X3
+  Download, Filter, PieChart, ScatterChart, Grid3X3, Activity, Target
 } from 'lucide-react';
 import {
   BarChart,
@@ -24,8 +24,23 @@ import {
   ScatterChart as ReScatterChart,
   Scatter,
   ZAxis,
+  Treemap,
 } from 'recharts';
 import * as XLSX from 'xlsx';
+import {
+  getUniqueValues,
+  applyAdvancedFilters,
+  exportToSQL,
+  exportToJSON,
+  prepareTreemapData,
+  SUM,
+  AVERAGE,
+  COUNT,
+  MIN,
+  MAX,
+  DISTINCTCOUNT,
+  FilterCondition
+} from '@/lib/powerbi-analytics';
 
 interface ColumnStat {
   column: string;
@@ -68,10 +83,10 @@ export default function DatasetPage() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'correlations' | 'charts'>('data');
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'scatter'>('bar');
+  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'correlations' | 'charts' | 'kpis'>('data');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'scatter' | 'treemap'>('bar');
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
 
   useEffect(() => {
@@ -110,16 +125,22 @@ export default function DatasetPage() {
   const applyFilters = () => {
     if (!dataset) return;
 
-    let filtered = dataset.records;
-    Object.entries(filters).forEach(([column, value]) => {
-      if (value) {
-        filtered = filtered.filter(record => {
-          const recordValue = String(record.data[column] || '').toLowerCase();
-          return recordValue.includes(value.toLowerCase());
-        });
-      }
-    });
-    setFilteredRecords(filtered);
+    const filterConditions: FilterCondition[] = Object.entries(filters)
+      .filter(([_, condition]) => condition.value)
+      .map(([column, condition]) => ({
+        column,
+        operator: condition.operator,
+        value: condition.value,
+        value2: condition.value2
+      }));
+
+    if (filterConditions.length === 0) {
+      setFilteredRecords(dataset.records);
+    } else {
+      const dataArray = dataset.records.map(r => r.data);
+      const filteredData = applyAdvancedFilters(dataArray, filterConditions);
+      setFilteredRecords(filteredData.map(data => ({ data })));
+    }
   };
 
   const runAnalysis = async (type: string) => {
@@ -163,6 +184,34 @@ export default function DatasetPage() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportAsSQLInserts = () => {
+    if (!dataset) return;
+    const records = filteredRecords.map(r => r.data);
+    const sql = exportToSQL(records, dataset.name.replace(/\s+/g, '_').toLowerCase());
+
+    const blob = new Blob([sql], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.sql`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const exportAsJSON = () => {
+    if (!dataset) return;
+    const records = filteredRecords.map(r => r.data);
+    const json = exportToJSON(records, true);
+
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -217,6 +266,38 @@ export default function DatasetPage() {
 
   const renderChart = () => {
     const data = prepareChartData();
+
+    if (chartType === 'treemap' && selectedColumns.length >= 2) {
+      const records = filteredRecords.map(r => r.data);
+      const treemapData = prepareTreemapData(records, selectedColumns[0], selectedColumns[1]);
+
+      return (
+        <ResponsiveContainer width="100%" height={400}>
+          <Treemap
+            data={treemapData}
+            dataKey="size"
+            aspectRatio={4/3}
+            stroke="#1e293b"
+            fill="#6366f1"
+          >
+            <Tooltip
+              contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  return (
+                    <div className="bg-slate-800 border border-indigo-500 rounded-lg p-3">
+                      <p className="text-white font-semibold">{payload[0].payload.name}</p>
+                      <p className="text-indigo-300">Value: {payload[0].value?.toLocaleString()}</p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+          </Treemap>
+        </ResponsiveContainer>
+      );
+    }
 
     if (chartType === 'pie') {
       const pieData = preparePieData();
@@ -348,20 +429,34 @@ export default function DatasetPage() {
             </div>
 
             {/* Export Buttons */}
-            <div className="flex space-x-3">
+            <div className="flex space-x-2">
               <button
                 onClick={exportToCSV}
-                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-lg"
+                className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors shadow-lg"
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="w-4 h-4 mr-1" />
                 CSV
               </button>
               <button
                 onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="w-4 h-4 mr-1" />
                 Excel
+              </button>
+              <button
+                onClick={exportAsSQLInserts}
+                className="inline-flex items-center px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors shadow-lg"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                SQL
+              </button>
+              <button
+                onClick={exportAsJSON}
+                className="inline-flex items-center px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors shadow-lg"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                JSON
               </button>
             </div>
           </div>
@@ -497,36 +592,114 @@ export default function DatasetPage() {
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
                 )}
               </button>
+              <button
+                onClick={() => setActiveTab('kpis')}
+                className={`px-8 py-5 font-bold text-sm transition-all relative ${
+                  activeTab === 'kpis'
+                    ? 'text-indigo-400'
+                    : 'text-gray-400 hover:text-gray-300 hover:bg-slate-700/30'
+                }`}
+              >
+                <Activity className="w-5 h-5 inline mr-2" />
+                KPIs
+                {activeTab === 'kpis' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
+                )}
+              </button>
             </nav>
           </div>
 
           <div className="p-6">
             {activeTab === 'data' && (
               <div>
-                {/* Filters */}
+                {/* Advanced Filters with Operators */}
                 <div className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-indigo-500/30">
                   <div className="flex items-center mb-3">
                     <Filter className="w-5 h-5 text-indigo-400 mr-2" />
-                    <h3 className="text-lg font-semibold text-white">Filters</h3>
+                    <h3 className="text-lg font-semibold text-white">Advanced Filters</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {columns.slice(0, 8).map(column => (
-                      <div key={column}>
-                        <label className="block text-sm text-gray-400 mb-1">{column}</label>
-                        <input
-                          type="text"
-                          placeholder={`Filter ${column}...`}
-                          value={filters[column] || ''}
-                          onChange={(e) => setFilters({...filters, [column]: e.target.value})}
-                          className="w-full px-3 py-2 bg-slate-700/50 border border-indigo-500/20 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {columns.slice(0, 6).map(column => {
+                      const uniqueValues = getUniqueValues(dataset.records.map(r => r.data), column);
+                      const currentFilter = filters[column] || { operator: 'equals', value: '' };
+
+                      return (
+                        <div key={column} className="bg-slate-900/50 p-3 rounded-lg">
+                          <label className="block text-sm font-medium text-gray-300 mb-2">{column}</label>
+                          <div className="space-y-2">
+                            <select
+                              value={currentFilter.operator}
+                              onChange={(e) => setFilters({
+                                ...filters,
+                                [column]: { ...currentFilter, operator: e.target.value as any }
+                              })}
+                              className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                            >
+                              <option value="equals">Equals</option>
+                              <option value="contains">Contains</option>
+                              <option value="greaterThan">Greater Than</option>
+                              <option value="lessThan">Less Than</option>
+                              <option value="between">Between</option>
+                            </select>
+
+                            {currentFilter.operator === 'between' ? (
+                              <div className="flex space-x-2">
+                                <input
+                                  type="text"
+                                  placeholder="Min"
+                                  value={currentFilter.value || ''}
+                                  onChange={(e) => setFilters({
+                                    ...filters,
+                                    [column]: { ...currentFilter, value: e.target.value }
+                                  })}
+                                  className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Max"
+                                  value={currentFilter.value2 || ''}
+                                  onChange={(e) => setFilters({
+                                    ...filters,
+                                    [column]: { ...currentFilter, value2: e.target.value }
+                                  })}
+                                  className="w-1/2 px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                                />
+                              </div>
+                            ) : uniqueValues.length <= 50 ? (
+                              <select
+                                value={currentFilter.value || ''}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  [column]: { ...currentFilter, value: e.target.value }
+                                })}
+                                className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value="">All Values</option>
+                                {uniqueValues.slice(0, 50).map((val: any) => (
+                                  <option key={val} value={val}>{String(val)}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                placeholder={`Filter ${column}...`}
+                                value={currentFilter.value || ''}
+                                onChange={(e) => setFilters({
+                                  ...filters,
+                                  [column]: { ...currentFilter, value: e.target.value }
+                                })}
+                                className="w-full px-2 py-1.5 bg-slate-700/50 border border-indigo-500/20 rounded text-white text-xs focus:ring-1 focus:ring-indigo-500"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {Object.values(filters).some(v => v) && (
+                  {Object.values(filters).some(v => v?.value) && (
                     <button
                       onClick={() => setFilters({})}
-                      className="mt-3 text-sm text-indigo-400 hover:text-indigo-300"
+                      className="mt-3 text-sm text-indigo-400 hover:text-indigo-300 font-medium"
                     >
                       Clear all filters
                     </button>
@@ -602,6 +775,12 @@ export default function DatasetPage() {
                         className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'scatter' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
                       >
                         <ScatterChart className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setChartType('treemap')}
+                        className={`px-4 py-2 rounded-lg transition-colors ${chartType === 'treemap' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-gray-300 hover:bg-slate-600'}`}
+                      >
+                        <Grid3X3 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
@@ -762,6 +941,83 @@ export default function DatasetPage() {
                     >
                       Run Correlation Analysis
                     </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'kpis' && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {/* Total Records KPI */}
+                  <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium text-blue-300">Total Records</h3>
+                      <Target className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <p className="text-3xl font-bold text-white">{COUNT(filteredRecords.map(r => r.data)).toLocaleString()}</p>
+                    <p className="text-xs text-blue-300 mt-1">Rows in dataset</p>
+                  </div>
+
+                  {/* Numeric Column KPIs */}
+                  {columnStats.filter(stat => stat.type === 'numeric').slice(0, 7).map((stat, idx) => {
+                    const records = filteredRecords.map(r => r.data);
+                    const sum = SUM(records, stat.column);
+                    const avg = AVERAGE(records, stat.column);
+                    const min = MIN(records, stat.column);
+                    const max = MAX(records, stat.column);
+                    const distinct = DISTINCTCOUNT(records, stat.column);
+
+                    const colors = [
+                      { from: 'purple-500', to: 'purple-600', text: 'purple' },
+                      { from: 'green-500', to: 'green-600', text: 'green' },
+                      { from: 'orange-500', to: 'orange-600', text: 'orange' },
+                      { from: 'pink-500', to: 'pink-600', text: 'pink' },
+                      { from: 'cyan-500', to: 'cyan-600', text: 'cyan' },
+                      { from: 'yellow-500', to: 'yellow-600', text: 'yellow' },
+                      { from: 'indigo-500', to: 'indigo-600', text: 'indigo' }
+                    ];
+                    const color = colors[idx % colors.length];
+
+                    return (
+                      <div key={stat.column} className={`bg-gradient-to-br from-${color.from}/20 to-${color.to}/20 border border-${color.from}/30 rounded-xl p-6 shadow-lg`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className={`text-sm font-medium text-${color.text}-300`}>{stat.column}</h3>
+                          <Activity className={`w-5 h-5 text-${color.text}-400`} />
+                        </div>
+                        <div className="space-y-1">
+                          <div>
+                            <p className="text-xs text-gray-400">Sum</p>
+                            <p className="text-xl font-bold text-white">{sum.toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                            <div>
+                              <p className="text-gray-400">Avg</p>
+                              <p className="text-white font-semibold">{avg.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Distinct</p>
+                              <p className="text-white font-semibold">{distinct}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Min</p>
+                              <p className="text-white font-semibold">{min.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Max</p>
+                              <p className="text-white font-semibold">{max.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {columnStats.filter(stat => stat.type === 'numeric').length === 0 && (
+                  <div className="text-center py-12">
+                    <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400">No numeric columns found for KPI calculation</p>
                   </div>
                 )}
               </div>
