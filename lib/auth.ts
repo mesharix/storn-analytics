@@ -1,5 +1,7 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
@@ -7,6 +9,14 @@ import bcrypt from 'bcryptjs';
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID as string,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    }),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -47,23 +57,26 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: 'jwt',
+    strategy: 'database',
   },
   pages: {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
+    async signIn({ user, account, profile }) {
+      // For OAuth providers, check if user needs admin role
+      if (account?.provider !== 'credentials' && user.email === process.env.ADMIN_EMAIL) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'admin' },
+        });
       }
-      return token;
+      return true;
     },
-    async session({ session, token }) {
+    async session({ session, user }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
+        (session.user as any).id = user.id;
+        (session.user as any).role = (user as any).role;
       }
       return session;
     },
