@@ -2,7 +2,7 @@
 
 A professional, free data analysis and visualization platform - The best alternative to Power BI.
 
-Built with Next.js 14, TypeScript, MySQL, and Prisma.
+Built with Next.js 14, TypeScript, Supabase (PostgreSQL), and Prisma.
 
 ## 🌐 Connect With Us
 
@@ -20,23 +20,23 @@ Built with Next.js 14, TypeScript, MySQL, and Prisma.
   - Data Quality Check: Detect missing values and duplicates
 - **Power BI-Level Features**: DAX-like functions, KPIs, advanced filters
 - **Data Export**: Export to CSV, Excel, SQL, and JSON formats
-- **MySQL Storage**: Persistent storage of datasets and analyses
+- **Supabase Storage**: Persistent PostgreSQL storage with real-time capabilities
 
 ## Tech Stack
 
 - **Frontend**: Next.js 14 (App Router), React, TypeScript, TailwindCSS
 - **Backend**: Next.js API Routes
-- **Database**: MySQL with Prisma ORM
+- **Database**: Supabase (PostgreSQL) with Prisma ORM
 - **Charts**: Recharts
 - **File Parsing**: PapaParse (CSV), XLSX (Excel)
 
-## Deployment to Coolify on Contabo Server
+## Setup & Deployment
 
 ### Prerequisites
 
-1. Coolify installed on your Contabo server (31.220.76.3)
-2. MySQL database created in Coolify
-3. Git repository (optional but recommended)
+1. A Supabase account (free tier available at [supabase.com](https://supabase.com))
+2. Node.js 18+ installed locally
+3. Git repository (recommended for deployment)
 
 ### Option 1: Deploy via Git Repository (Recommended)
 
@@ -97,19 +97,40 @@ cd storn-analytics
    - Configure environment variables (see below)
    - Deploy
 
-### Environment Variables in Coolify
+### Supabase Database Setup
 
-Set these environment variables in your Coolify application:
+1. **Create a Supabase Project:**
+   - Go to [supabase.com](https://supabase.com) and sign in
+   - Click "New Project"
+   - Fill in project details (name, database password, region)
+   - Wait for the project to initialize
+
+2. **Get Your Database Connection String:**
+   - In Supabase dashboard, go to **Project Settings** → **Database**
+   - Scroll to **Connection String** section
+   - Select **Session** mode (recommended for serverless)
+   - Copy the connection string (format: `postgresql://postgres:[PASSWORD]@db.xxxxx.supabase.co:5432/postgres`)
+   - Replace `[PASSWORD]` with your actual database password
+
+3. **Enable Required Extensions (Optional):**
+   - Go to **Database** → **Extensions**
+   - Enable `uuid-ossp` for UUID generation
+
+### Environment Variables
+
+Set these environment variables in your deployment platform (Vercel, Coolify, etc.):
 
 ```env
-DATABASE_URL=mysql://username:password@mysql-host:3306/storn_analytics
+DATABASE_URL=postgresql://postgres:your-password@db.xxxxxxxxxxxxx.supabase.co:5432/postgres
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
+NEXTAUTH_SECRET=your-generated-secret-key
+NEXTAUTH_URL=https://yourdomain.com
+ADMIN_EMAIL=your-admin-email@example.com
 ```
 
-**Get MySQL credentials from Coolify:**
-1. Go to your MySQL database in Coolify
-2. Copy the connection details
-3. Format as: `mysql://USERNAME:PASSWORD@HOST:PORT/DATABASE_NAME`
+**Important:**
+- Generate `NEXTAUTH_SECRET` using: `openssl rand -base64 32`
+- The first user registering with `ADMIN_EMAIL` will get admin privileges
 
 ### Post-Deployment Steps
 
@@ -133,9 +154,11 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
 ## Local Development
 
-1. **Install dependencies:**
+1. **Clone and install dependencies:**
 
 ```bash
+git clone https://github.com/yourusername/storn-analytics.git
+cd storn-analytics
 npm install
 ```
 
@@ -144,8 +167,11 @@ npm install
 Create a `.env` file:
 
 ```env
-DATABASE_URL="mysql://root:password@localhost:3306/storn_analytics"
+DATABASE_URL="postgresql://postgres:your-password@db.xxxxxxxxxxxxx.supabase.co:5432/postgres"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-generated-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+ADMIN_EMAIL="your-admin-email@example.com"
 ```
 
 3. **Set up database:**
@@ -154,8 +180,8 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 # Generate Prisma client
 npx prisma generate
 
-# Run migrations
-npx prisma migrate dev
+# Run migrations to create tables
+npx prisma migrate dev --name init
 ```
 
 4. **Start development server:**
@@ -176,7 +202,7 @@ Run with Docker Compose:
 docker-compose up --build
 ```
 
-This will start both the Next.js app and MySQL database.
+**Note:** Make sure your `.env` file contains the Supabase `DATABASE_URL` before running Docker.
 
 ## Usage
 
@@ -217,9 +243,117 @@ data-analysis/
 └── docker-compose.yml    # Docker Compose config
 ```
 
+## Supabase Features & Extensions
+
+Since this app uses Supabase, you can easily extend it with powerful features:
+
+### Already Available
+- **PostgreSQL Database**: Robust, scalable storage with full ACID compliance
+- **Connection Pooling**: Built-in connection pooling for serverless deployments
+- **Automatic Backups**: Daily backups included in Supabase free tier
+
+### Easy to Add
+1. **Row Level Security (RLS)**: Add database-level security policies
+   ```sql
+   -- Example: Users can only see their own datasets
+   ALTER TABLE datasets ENABLE ROW LEVEL SECURITY;
+
+   CREATE POLICY "Users can view own datasets"
+   ON datasets FOR SELECT
+   USING (auth.uid() = user_id);
+   ```
+
+2. **Real-time Subscriptions**: Get live updates when data changes
+   ```typescript
+   // Listen to new dataset uploads
+   const channel = supabase
+     .channel('datasets')
+     .on('postgres_changes', {
+       event: 'INSERT',
+       schema: 'public',
+       table: 'datasets'
+     }, (payload) => {
+       console.log('New dataset uploaded!', payload)
+     })
+     .subscribe()
+   ```
+
+3. **Supabase Storage**: Store uploaded files before processing
+   - Instead of parsing files immediately, store them in Supabase Storage
+   - Process files in background jobs
+   - Keep original files for re-processing
+
+4. **Edge Functions**: Add serverless functions for complex processing
+   - Run heavy computations without blocking the main app
+   - Schedule periodic analysis jobs
+   - Process large datasets asynchronously
+
+5. **Additional Auth Providers**: Extend NextAuth with OAuth
+   - Google, GitHub, Microsoft, etc.
+   - Social login integration
+   - Magic link authentication
+
+### Database Management
+
+**Prisma Studio** (Visual database browser):
+```bash
+npx prisma studio
+```
+
+**Supabase Dashboard**:
+- Table Editor: View and edit data directly
+- SQL Editor: Run custom queries
+- Database Logs: Monitor queries and performance
+- API Docs: Auto-generated API documentation
+
+**Migration Management**:
+```bash
+# Create a new migration
+npx prisma migrate dev --name migration_name
+
+# Apply migrations in production
+npx prisma migrate deploy
+
+# Reset database (development only - deletes all data)
+npx prisma migrate reset
+```
+
+## Troubleshooting
+
+### Database Connection Issues
+- Verify your `DATABASE_URL` is correct
+- Check that your Supabase project is active
+- Ensure you're using the correct connection mode (Session, Transaction, or Direct)
+- Check Supabase dashboard for any service issues
+
+### Migration Errors
+```bash
+# Check migration status
+npx prisma migrate status
+
+# Force reset (WARNING: deletes all data)
+npx prisma migrate reset
+```
+
+### Build Errors
+```bash
+# Clear Next.js cache
+rm -rf .next
+
+# Regenerate Prisma client
+npx prisma generate
+
+# Rebuild
+npm run build
+```
+
 ## Support
 
-For issues or questions, check the deployment logs in Coolify.
+For issues or questions:
+- Check deployment logs in your hosting platform
+- Review Supabase logs in the dashboard
+- Join our Discord community (link above)
+- Open an issue on GitHub
 
 ## License
 
