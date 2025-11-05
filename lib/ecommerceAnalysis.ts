@@ -459,6 +459,30 @@ export function cleanEcommerceData(data: DataRow[], detectedColumns: Record<stri
       }
     }
 
+    // Clean VAT column: Convert text values to 0 and ensure numeric
+    if (detectedColumns.vatColumn) {
+      const vatValue = cleanedRow[detectedColumns.vatColumn];
+
+      // Check if it's a text value that should be 0
+      if (vatValue === null || vatValue === undefined || vatValue === '') {
+        cleanedRow[detectedColumns.vatColumn] = 0;
+      } else if (typeof vatValue === 'string') {
+        const lowerVat = vatValue.toLowerCase().trim();
+        // Replace common text values with 0
+        if (lowerVat === 'none' || lowerVat === 'zero' || lowerVat === 'n/a' ||
+            lowerVat === 'nil' || lowerVat === 'na' || lowerVat === '-' || lowerVat === '') {
+          cleanedRow[detectedColumns.vatColumn] = 0;
+        } else {
+          // Try to parse as number, default to 0 if invalid
+          const parsed = parseFloat(vatValue);
+          cleanedRow[detectedColumns.vatColumn] = isNaN(parsed) ? 0 : parsed;
+        }
+      } else if (typeof vatValue === 'number') {
+        // Already a number, ensure it's valid
+        cleanedRow[detectedColumns.vatColumn] = isNaN(vatValue) ? 0 : vatValue;
+      }
+    }
+
     return cleanedRow;
   });
 }
