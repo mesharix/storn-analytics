@@ -8,7 +8,8 @@ import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // Temporarily disable adapter for simpler JWT-based auth
+  // adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -50,26 +51,26 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: {
-    strategy: 'database',
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: '/login',
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      // For OAuth providers, check if user needs admin role
-      if (account?.provider !== 'credentials' && user.email === process.env.ADMIN_EMAIL) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { role: 'admin' },
-        });
+    async jwt({ token, user }) {
+      // Add user info to JWT token on sign in
+      if (user) {
+        token.id = user.id;
+        token.role = (user as any).role;
       }
-      return true;
+      return token;
     },
-    async session({ session, user }) {
+    async session({ session, token }) {
+      // Add token info to session
       if (session.user) {
-        (session.user as any).id = user.id;
-        (session.user as any).role = (user as any).role;
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
       }
       return session;
     },
