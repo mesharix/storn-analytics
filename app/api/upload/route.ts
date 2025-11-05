@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       const result = Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
-        dynamicTyping: true,
+        dynamicTyping: false, // Keep as strings, we'll handle type conversion manually
       });
       parsedData = result.data;
     } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
@@ -114,6 +114,34 @@ export async function POST(request: NextRequest) {
         if (isCityBlank && isCountryBlank) {
           transformedRow['المدينة'] = 'Riyadh';
           transformedRow['الدولة'] = 'Saudi Arabia';
+        }
+      }
+
+      // Rule 3: Clean VAT (الضريبة) - Convert text to 0 and ensure numeric
+      const vatColumn = 'الضريبة';
+      if (vatColumn in transformedRow) {
+        const vatValue = transformedRow[vatColumn];
+
+        // Check if it's empty, null, or undefined
+        if (vatValue === null || vatValue === undefined || vatValue === '') {
+          transformedRow[vatColumn] = 0;
+        } else if (typeof vatValue === 'string') {
+          const lowerVat = vatValue.toLowerCase().trim();
+          // Replace common text values with 0
+          if (lowerVat === 'none' || lowerVat === 'zero' || lowerVat === 'n/a' ||
+              lowerVat === 'nil' || lowerVat === 'na' || lowerVat === '-' || lowerVat === '') {
+            transformedRow[vatColumn] = 0;
+          } else {
+            // Try to parse as number, default to 0 if invalid
+            const parsed = parseFloat(vatValue);
+            transformedRow[vatColumn] = isNaN(parsed) ? 0 : parsed;
+          }
+        } else if (typeof vatValue === 'number') {
+          // Already a number, ensure it's valid
+          transformedRow[vatColumn] = isNaN(vatValue) ? 0 : vatValue;
+        } else {
+          // Any other type, convert to 0
+          transformedRow[vatColumn] = 0;
         }
       }
 
