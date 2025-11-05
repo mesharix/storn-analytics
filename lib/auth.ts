@@ -1,8 +1,7 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-// OAuth providers temporarily disabled until credentials are configured
-// import GoogleProvider from 'next-auth/providers/google';
-// import GitHubProvider from 'next-auth/providers/github';
+import GoogleProvider from 'next-auth/providers/google';
+import GitHubProvider from 'next-auth/providers/github';
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from './prisma';
 import bcrypt from 'bcryptjs';
@@ -49,6 +48,24 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    // Conditionally add Google provider only if credentials are configured
+    ...(process.env.GOOGLE_CLIENT_ID &&
+        process.env.GOOGLE_CLIENT_SECRET &&
+        process.env.GOOGLE_CLIENT_ID !== 'your-google-client-id'
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        })]
+      : []),
+    // Conditionally add GitHub provider only if credentials are configured
+    ...(process.env.GITHUB_CLIENT_ID &&
+        process.env.GITHUB_CLIENT_SECRET &&
+        process.env.GITHUB_CLIENT_ID !== 'your-github-client-id'
+      ? [GitHubProvider({
+          clientId: process.env.GITHUB_CLIENT_ID,
+          clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        })]
+      : []),
   ],
   session: {
     strategy: 'jwt',
@@ -58,11 +75,30 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       // Add user info to JWT token on sign in
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
+
+        // For OAuth sign-in, fetch or create user in database
+        if (account?.provider && account.provider !== 'credentials') {
+          const dbUser = await prisma.user.upsert({
+            where: { email: user.email! },
+            update: {
+              name: user.name,
+              image: user.image,
+            },
+            create: {
+              email: user.email!,
+              name: user.name,
+              image: user.image,
+              role: user.email === process.env.ADMIN_EMAIL ? 'ADMIN' : 'USER',
+            },
+          });
+          token.id = dbUser.id;
+          token.role = dbUser.role;
+        }
       }
       return token;
     },

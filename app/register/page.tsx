@@ -163,8 +163,7 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {/* OAuth buttons temporarily hidden until credentials are configured */}
-          {/* <div className="mt-6">
+          <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-700"></div>
@@ -224,7 +223,7 @@ export default function RegisterPage() {
                 )}
               </button>
             </div>
-          </div> */}
+          </div>
 
           <p className="mt-6 text-center text-sm text-gray-400">
             Already have an account?{' '}
