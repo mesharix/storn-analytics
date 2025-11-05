@@ -51,10 +51,10 @@ export async function POST(request: NextRequest) {
     // Auto-detect e-commerce columns if not provided
     const detectedColumns = columns || detectEcommerceColumns(data) || {};
 
-    // Clean data: Remove SKU from product names, fill blank cities with N/A
-    if (detectedColumns.productColumn || detectedColumns.cityColumn) {
+    // Clean data: Remove SKU from product names, fill blank cities with N/A, convert VAT text to numbers
+    if (detectedColumns.productColumn || detectedColumns.cityColumn || detectedColumns.vatColumn) {
       data = cleanEcommerceData(data, detectedColumns);
-      console.log('Data cleaned: SKU removed, blank cities filled with N/A');
+      console.log('Data cleaned: SKU removed, blank cities filled with N/A, VAT converted to numeric');
     }
 
     switch (analysisType) {
