@@ -483,6 +483,49 @@ export function cleanEcommerceData(data: DataRow[], detectedColumns: Record<stri
       }
     }
 
+    // Transform Order Status (حالة الطلب) - Standardize to completed/not completed
+    const orderStatusColumn = 'حالة الطلب';
+    if (orderStatusColumn in cleanedRow) {
+      const statusValue = cleanedRow[orderStatusColumn];
+      if (statusValue && typeof statusValue === 'string') {
+        const trimmedStatus = statusValue.trim();
+        // If status is "تم التنفيذ", mark as completed, otherwise not completed
+        cleanedRow[orderStatusColumn] = trimmedStatus === 'تم التنفيذ' ? 'Completed' : 'Not Completed';
+      } else {
+        // If missing or invalid, default to "Not Completed"
+        cleanedRow[orderStatusColumn] = 'Not Completed';
+      }
+    }
+
+    // Clean Shipping Cost (تكلفة الشحن) - Ensure numeric
+    const shippingCostColumn = 'تكلفة الشحن';
+    if (shippingCostColumn in cleanedRow) {
+      const shippingValue = cleanedRow[shippingCostColumn];
+
+      // Check if it's empty, null, or undefined
+      if (shippingValue === null || shippingValue === undefined || shippingValue === '') {
+        cleanedRow[shippingCostColumn] = 0;
+      } else if (typeof shippingValue === 'string') {
+        const lowerShipping = shippingValue.toLowerCase().trim();
+        // Replace common text values with 0
+        if (lowerShipping === 'none' || lowerShipping === 'zero' || lowerShipping === 'n/a' ||
+            lowerShipping === 'nil' || lowerShipping === 'na' || lowerShipping === '-' ||
+            lowerShipping === 'free' || lowerShipping === 'مجاني' || lowerShipping === '') {
+          cleanedRow[shippingCostColumn] = 0;
+        } else {
+          // Try to parse as number, default to 0 if invalid
+          const parsed = parseFloat(shippingValue);
+          cleanedRow[shippingCostColumn] = isNaN(parsed) ? 0 : parsed;
+        }
+      } else if (typeof shippingValue === 'number') {
+        // Already a number, ensure it's valid
+        cleanedRow[shippingCostColumn] = isNaN(shippingValue) ? 0 : shippingValue;
+      } else {
+        // Any other type, convert to 0
+        cleanedRow[shippingCostColumn] = 0;
+      }
+    }
+
     return cleanedRow;
   });
 }
