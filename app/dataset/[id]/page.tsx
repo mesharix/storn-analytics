@@ -98,7 +98,7 @@ export default function DatasetPage() {
   const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [showAllFilters, setShowAllFilters] = useState(false);
 
   useEffect(() => {
@@ -194,11 +194,26 @@ export default function DatasetPage() {
     }
   };
 
-  // Memoized derived values
-  const summaryAnalysis = useMemo(() => dataset?.analyses.find(a => a.type === 'summary'), [dataset?.analyses]);
-  const columnStats: ColumnStat[] = useMemo(() => summaryAnalysis?.results?.columnStats || [], [summaryAnalysis]);
-  const correlationAnalysis = useMemo(() => dataset?.analyses.find(a => a.type === 'correlation'), [dataset?.analyses]);
-  const columns = useMemo(() => dataset?.records && dataset.records.length > 0 ? Object.keys(dataset.records[0].data as Record<string, any>) : [], [dataset?.records]);
+  // Memoized derived values - ONLY calculate when needed
+  const summaryAnalysis = useMemo(() => {
+    if (!dataset || (activeTab !== 'stats' && activeTab !== 'data' && activeTab !== 'kpis')) return null;
+    return dataset.analyses.find(a => a.type === 'summary');
+  }, [dataset?.analyses, activeTab]);
+
+  const columnStats: ColumnStat[] = useMemo(() => {
+    if (!summaryAnalysis) return [];
+    return summaryAnalysis.results?.columnStats || [];
+  }, [summaryAnalysis]);
+
+  const correlationAnalysis = useMemo(() => {
+    if (!dataset || activeTab !== 'insights') return null;
+    return dataset.analyses.find(a => a.type === 'correlation');
+  }, [dataset?.analyses, activeTab]);
+
+  const columns = useMemo(() => {
+    if (!dataset?.records || dataset.records.length === 0) return [];
+    return Object.keys(dataset.records[0].data as Record<string, any>);
+  }, [dataset?.records]);
 
   // Export Functions - Memoized callbacks
   const exportToCSV = useCallback(() => {
@@ -316,8 +331,9 @@ export default function DatasetPage() {
     XLSX.writeFile(wb, `${dataset.name}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
   }, [dataset, filteredRecords, columnStats]);
 
-  // Chart Data Preparation - Memoized for performance
+  // Chart Data Preparation - Memoized for performance - ONLY calculate when on charts tab
   const chartData = useMemo(() => {
+    if (activeTab !== 'charts') return []; // Don't calculate if not viewing charts
     if (!dataset || !categoryColumn) return [];
 
     // For categorical mode (text vs text), we don't need valueColumn
@@ -427,34 +443,38 @@ export default function DatasetPage() {
 
     // Sort by value descending and take top 15 for better performance
     return chartData.sort((a, b) => b.value - a.value).slice(0, 15);
-  }, [dataset, categoryColumn, valueColumn, secondCategoryColumn, chartMode, aggregation, filteredRecords, chartDateFrom, chartDateTo, columns]);
+  }, [activeTab, dataset, categoryColumn, valueColumn, secondCategoryColumn, chartMode, aggregation, filteredRecords, chartDateFrom, chartDateTo, columns]);
 
   const pieData = useMemo(() => chartData.slice(0, 8), [chartData]);
 
-  // Memoize table headers for performance
+  // Memoize table headers for performance - ONLY when on data tab
   const tableHeaders = useMemo(() => {
+    if (activeTab !== 'data') return [];
     if (filteredRecords.length === 0) return [];
     return Object.keys(filteredRecords[0].data as Record<string, any>);
-  }, [filteredRecords]);
+  }, [filteredRecords, activeTab]);
 
-  // Memoize paginated data
+  // Memoize paginated data - ONLY when on data tab
   const paginatedData = useMemo(() => {
+    if (activeTab !== 'data') return [];
     return filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
-  }, [filteredRecords, currentPage, rowsPerPage]);
+  }, [filteredRecords, currentPage, rowsPerPage, activeTab]);
 
-  // Memoize filter columns (show only 6 by default, expand to show all)
+  // Memoize filter columns (show only 3 by default, expand to show all) - ONLY when on data tab
   const filterColumns = useMemo(() => {
-    return showAllFilters ? columns : columns.slice(0, 6);
-  }, [columns, showAllFilters]);
+    if (activeTab !== 'data') return [];
+    return showAllFilters ? columns : columns.slice(0, 3);
+  }, [columns, showAllFilters, activeTab]);
 
-  // Memoize unique values calculation (expensive operation)
+  // Memoize unique values calculation (expensive operation) - ONLY when on data tab
   const uniqueValuesCache = useMemo(() => {
+    if (activeTab !== 'data') return {};
     const cache: Record<string, any[]> = {};
     filterColumns.forEach(column => {
       cache[column] = getUniqueValues(dataset?.records.map(r => r.data) || [], column);
     });
     return cache;
-  }, [filterColumns, dataset?.records]);
+  }, [filterColumns, dataset?.records, activeTab]);
 
   const renderChart = () => {
     const data = chartData;
@@ -891,13 +911,13 @@ export default function DatasetPage() {
                   </div>
 
                   {/* Show More/Less Filters Button */}
-                  {columns.length > 6 && (
+                  {columns.length > 3 && (
                     <div className="mt-4 text-center">
                       <button
                         onClick={() => setShowAllFilters(!showAllFilters)}
                         className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-lg text-sm font-medium transition-colors border border-indigo-500/30"
                       >
-                        {showAllFilters ? `Show Less Filters (${filterColumns.length})` : `Show All Filters (${columns.length})`}
+                        {showAllFilters ? `Show Less (3 filters)` : `Show All Filters (${columns.length} total)`}
                       </button>
                     </div>
                   )}
@@ -945,9 +965,10 @@ export default function DatasetPage() {
                           }}
                           className="bg-slate-800 text-white border border-indigo-500/30 rounded px-2 py-1 text-sm"
                         >
+                          <option value={5}>5 rows</option>
+                          <option value={10}>10 rows</option>
                           <option value={25}>25 rows</option>
                           <option value={50}>50 rows</option>
-                          <option value={100}>100 rows</option>
                         </select>
                       </div>
                       <div className="flex gap-2">
