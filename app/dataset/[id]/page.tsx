@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -101,7 +101,7 @@ export default function DatasetPage() {
   const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     fetchDataset();
@@ -192,8 +192,8 @@ export default function DatasetPage() {
     }
   };
 
-  // Export Functions
-  const exportToCSV = () => {
+  // Export Functions - Memoized callbacks
+  const exportToCSV = useCallback(() => {
     if (!dataset) return;
 
     const records = filteredRecords.map(r => r.data);
@@ -216,9 +216,9 @@ export default function DatasetPage() {
     a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [dataset, filteredRecords]);
 
-  const exportAsSQLInserts = () => {
+  const exportAsSQLInserts = useCallback(() => {
     if (!dataset) return;
     const records = filteredRecords.map(r => r.data);
     const sql = exportToSQL(records, dataset.name.replace(/\s+/g, '_').toLowerCase());
@@ -230,9 +230,9 @@ export default function DatasetPage() {
     a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.sql`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [dataset, filteredRecords]);
 
-  const exportAsJSON = () => {
+  const exportAsJSON = useCallback(() => {
     if (!dataset) return;
     const records = filteredRecords.map(r => r.data);
     const json = exportToJSON(records, true);
@@ -244,9 +244,9 @@ export default function DatasetPage() {
     a.download = `${dataset.name}_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [dataset, filteredRecords]);
 
-  const exportToExcel = () => {
+  const exportToExcel = useCallback(() => {
     if (!dataset) return;
 
     const wb = XLSX.utils.book_new();
@@ -309,10 +309,10 @@ export default function DatasetPage() {
     XLSX.utils.book_append_sheet(wb, instructionsWs, 'How to Create Charts');
 
     XLSX.writeFile(wb, `${dataset.name}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
+  }, [dataset, filteredRecords, columnStats]);
 
-  // Chart Data Preparation
-  const prepareChartData = () => {
+  // Chart Data Preparation - Memoized for performance
+  const chartData = useMemo(() => {
     if (!dataset || !categoryColumn) return [];
 
     // For categorical mode (text vs text), we don't need valueColumn
@@ -422,14 +422,12 @@ export default function DatasetPage() {
 
     // Sort by value descending and take top 20
     return chartData.sort((a, b) => b.value - a.value).slice(0, 20);
-  };
+  }, [dataset, categoryColumn, valueColumn, secondCategoryColumn, chartMode, aggregation, filteredRecords, chartDateFrom, chartDateTo, columns]);
 
-  const preparePieData = () => {
-    return prepareChartData().slice(0, 10); // Limit pie chart to top 10
-  };
+  const pieData = useMemo(() => chartData.slice(0, 10), [chartData]);
 
   const renderChart = () => {
-    const data = prepareChartData();
+    const data = chartData;
 
     if (data.length === 0) {
       return <p className="text-center text-gray-400 py-12">No data to display</p>;
@@ -438,12 +436,12 @@ export default function DatasetPage() {
     const aggregationLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
 
     if (chartType === 'pie') {
-      const pieData = preparePieData();
+      const pieDataForRender = pieData;
       return (
         <ResponsiveContainer width="100%" height={500}>
           <RePieChart>
             <Pie
-              data={pieData}
+              data={pieDataForRender}
               cx="50%"
               cy="50%"
               labelLine={true}
@@ -546,10 +544,10 @@ export default function DatasetPage() {
     );
   }
 
-  const summaryAnalysis = dataset.analyses.find(a => a.type === 'summary');
-  const columnStats: ColumnStat[] = summaryAnalysis?.results?.columnStats || [];
-  const correlationAnalysis = dataset.analyses.find(a => a.type === 'correlation');
-  const columns = dataset.records.length > 0 ? Object.keys(dataset.records[0].data as Record<string, any>) : [];
+  const summaryAnalysis = useMemo(() => dataset.analyses.find(a => a.type === 'summary'), [dataset.analyses]);
+  const columnStats: ColumnStat[] = useMemo(() => summaryAnalysis?.results?.columnStats || [], [summaryAnalysis]);
+  const correlationAnalysis = useMemo(() => dataset.analyses.find(a => a.type === 'correlation'), [dataset.analyses]);
+  const columns = useMemo(() => dataset.records.length > 0 ? Object.keys(dataset.records[0].data as Record<string, any>) : [], [dataset.records]);
 
   return (
     <div className="min-h-screen animated-bg">
