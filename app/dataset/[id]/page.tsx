@@ -1,30 +1,28 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Table2, BarChart3, TrendingUp, Loader2,
   Download, Filter, PieChart, ScatterChart, Grid3X3, Activity, Target
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-// Lazy load Recharts components
-const BarChart = dynamic(() => import('recharts').then(mod => ({ default: mod.BarChart })), { ssr: false });
-const Bar = dynamic(() => import('recharts').then(mod => ({ default: mod.Bar })), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), { ssr: false });
-const CartesianGrid = dynamic(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), { ssr: false });
-const Legend = dynamic(() => import('recharts').then(mod => ({ default: mod.Legend })), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { ssr: false });
-const LineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), { ssr: false });
-const Line = dynamic(() => import('recharts').then(mod => ({ default: mod.Line })), { ssr: false });
-const RePieChart = dynamic(() => import('recharts').then(mod => ({ default: mod.PieChart })), { ssr: false });
-const Pie = dynamic(() => import('recharts').then(mod => ({ default: mod.Pie })), { ssr: false });
-const Cell = dynamic(() => import('recharts').then(mod => ({ default: mod.Cell })), { ssr: false });
-// Lazy load XLSX for better initial load
-const XLSX = dynamic(() => import('xlsx'), { ssr: false });
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import * as XLSX from 'xlsx';
 
 import {
   getUniqueValues,
@@ -427,11 +425,11 @@ export default function DatasetPage() {
       };
     });
 
-    // Sort by value descending and take top 20
-    return chartData.sort((a, b) => b.value - a.value).slice(0, 20);
+    // Sort by value descending and take top 15 for better performance
+    return chartData.sort((a, b) => b.value - a.value).slice(0, 15);
   }, [dataset, categoryColumn, valueColumn, secondCategoryColumn, chartMode, aggregation, filteredRecords, chartDateFrom, chartDateTo, columns]);
 
-  const pieData = useMemo(() => chartData.slice(0, 10), [chartData]);
+  const pieData = useMemo(() => chartData.slice(0, 8), [chartData]);
 
   // Memoize table headers for performance
   const tableHeaders = useMemo(() => {
@@ -449,6 +447,15 @@ export default function DatasetPage() {
     return showAllFilters ? columns : columns.slice(0, 6);
   }, [columns, showAllFilters]);
 
+  // Memoize unique values calculation (expensive operation)
+  const uniqueValuesCache = useMemo(() => {
+    const cache: Record<string, any[]> = {};
+    filterColumns.forEach(column => {
+      cache[column] = getUniqueValues(dataset?.records.map(r => r.data) || [], column);
+    });
+    return cache;
+  }, [filterColumns, dataset?.records]);
+
   const renderChart = () => {
     const data = chartData;
 
@@ -461,17 +468,18 @@ export default function DatasetPage() {
     if (chartType === 'pie') {
       const pieDataForRender = pieData;
       return (
-        <ResponsiveContainer width="100%" height={500}>
+        <ResponsiveContainer width="100%" height={400}>
           <RePieChart>
             <Pie
               data={pieDataForRender}
               cx="50%"
               cy="50%"
-              labelLine={true}
-              label={({name, value, percent}) => `${name}: ${value.toLocaleString()} (${(percent * 100).toFixed(1)}%)`}
-              outerRadius={150}
+              labelLine={false}
+              label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}
+              outerRadius={120}
               fill="#8884d8"
               dataKey="value"
+              animationDuration={300}
             >
               {pieData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
@@ -481,7 +489,6 @@ export default function DatasetPage() {
               contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
               formatter={(value: any) => [value.toLocaleString(), `${aggregationLabel} of ${valueColumn}`]}
             />
-            <Legend />
           </RePieChart>
         </ResponsiveContainer>
       );
@@ -489,23 +496,24 @@ export default function DatasetPage() {
 
     if (chartType === 'line') {
       return (
-        <ResponsiveContainer width="100%" height={500}>
+        <ResponsiveContainer width="100%" height={400}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-            <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={100} />
+            <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={80} interval={0} />
             <YAxis stroke="#9ca3af" />
             <Tooltip
               contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
               formatter={(value: any) => [value.toLocaleString(), `${aggregationLabel} of ${valueColumn}`]}
             />
-            <Legend />
             <Line
               type="monotone"
               dataKey="value"
               stroke="#6366f1"
-              strokeWidth={3}
-              dot={{ fill: '#8b5cf6', r: 5 }}
+              strokeWidth={2}
+              dot={false}
               name={`${aggregationLabel} of ${valueColumn}`}
+              animationDuration={300}
+              isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -514,31 +522,25 @@ export default function DatasetPage() {
 
     // Default: Bar Chart
     return (
-      <ResponsiveContainer width="100%" height={500}>
+      <ResponsiveContainer width="100%" height={400}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={100} />
+          <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={80} interval={0} />
           <YAxis stroke="#9ca3af" />
           <Tooltip
             contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}}
             formatter={(value: any) => [value.toLocaleString(), `${aggregationLabel} of ${valueColumn}`]}
           />
-          <Legend />
           <Bar
             dataKey="value"
-            fill="url(#barGradient)"
             name={`${aggregationLabel} of ${valueColumn}`}
+            animationDuration={300}
+            isAnimationActive={false}
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
             ))}
           </Bar>
-          <defs>
-            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9}/>
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.7}/>
-            </linearGradient>
-          </defs>
         </BarChart>
       </ResponsiveContainer>
     );
@@ -731,7 +733,7 @@ export default function DatasetPage() {
                       const stat = columnStats.find(s => s.column === column);
                       const isNumeric = stat?.type === 'numeric';
                       const isDate = column.toLowerCase().includes('date') || column.toLowerCase().includes('تاريخ');
-                      const uniqueValues = getUniqueValues(dataset.records.map(r => r.data), column);
+                      const uniqueValues = uniqueValuesCache[column] || [];
                       const hasLimitedValues = uniqueValues.length <= 50;
                       const currentFilter = filters[column] || { column, operator: 'equals', value: '' };
 
@@ -1183,15 +1185,7 @@ export default function DatasetPage() {
                 </div>
 
                 <div className="bg-slate-900/50 rounded-lg p-6">
-                  {categoryColumn && ((chartMode === 'numeric' && valueColumn) || (chartMode === 'categorical' && secondCategoryColumn)) ? (
-                    <Suspense fallback={
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                      </div>
-                    }>
-                      {renderChart()}
-                    </Suspense>
-                  ) : (
+                  {categoryColumn && ((chartMode === 'numeric' && valueColumn) || (chartMode === 'categorical' && secondCategoryColumn)) ? renderChart() : (
                     <div className="text-center py-12">
                       <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-400 text-lg font-semibold mb-2">Select data to visualize</p>
@@ -1257,7 +1251,7 @@ export default function DatasetPage() {
 
                     {stat.type === 'numeric' && (
                       <div className="mt-6 bg-slate-900/50 rounded-lg p-4">
-                        <ResponsiveContainer width="100%" height={200}>
+                        <ResponsiveContainer width="100%" height={150}>
                           <BarChart
                             data={[
                               { name: 'Min', value: stat.min },
@@ -1270,13 +1264,7 @@ export default function DatasetPage() {
                             <XAxis dataKey="name" stroke="#9ca3af" />
                             <YAxis stroke="#9ca3af" />
                             <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #4f46e5', borderRadius: '8px'}} />
-                            <Bar dataKey="value" fill="url(#colorGradient)" />
-                            <defs>
-                              <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#6366f1" stopOpacity={0.8}/>
-                                <stop offset="100%" stopColor="#a855f7" stopOpacity={0.8}/>
-                              </linearGradient>
-                            </defs>
+                            <Bar dataKey="value" fill="#6366f1" animationDuration={200} isAnimationActive={false} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
