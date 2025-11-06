@@ -717,7 +717,7 @@ export default function DatasetPage() {
                       const isDate = column.toLowerCase().includes('date') || column.toLowerCase().includes('تاريخ');
                       const uniqueValues = getUniqueValues(dataset.records.map(r => r.data), column);
                       const hasLimitedValues = uniqueValues.length <= 50;
-                      const currentFilter = filters[column] || { operator: 'equals', value: '' };
+                      const currentFilter = filters[column] || { column, operator: 'equals', value: '' };
 
                       return (
                         <div key={column} className="bg-slate-900/60 p-4 rounded-lg border border-slate-700/50 hover:border-indigo-500/50 transition-colors">
@@ -817,7 +817,7 @@ export default function DatasetPage() {
                                 value={currentFilter.value || ''}
                                 onChange={(e) => setFilters({
                                   ...filters,
-                                  [column]: { operator: 'equals' as const, value: e.target.value }
+                                  [column]: { column, operator: 'equals', value: e.target.value } as FilterCondition
                                 })}
                                 className="w-full px-3 py-2 bg-slate-700/70 border border-indigo-500/30 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500"
                               >
@@ -847,7 +847,7 @@ export default function DatasetPage() {
                                 value={currentFilter.value || ''}
                                 onChange={(e) => setFilters({
                                   ...filters,
-                                  [column]: { operator: 'contains', value: e.target.value }
+                                  [column]: { column, operator: 'contains', value: e.target.value } as FilterCondition
                                 })}
                                 className="w-full px-3 py-2 bg-slate-700/70 border border-indigo-500/30 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
                               />
