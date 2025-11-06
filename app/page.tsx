@@ -307,6 +307,33 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="glass-dark border-t border-indigo-500 border-opacity-20 mt-16">
+        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div className="text-center md:text-left">
+              <p className="text-gray-400 text-sm">
+                Built by <span className="text-indigo-400 font-semibold">Mesh Albogami</span>
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                © {new Date().getFullYear()} Data Analysis Platform. All rights reserved.
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <a
+                href="mailto:hi@msh.sa"
+                className="inline-flex items-center px-4 py-2 bg-slate-700 bg-opacity-50 text-gray-300 rounded-lg hover:bg-slate-600 hover:bg-opacity-60 transition-colors border border-slate-600 text-sm"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                hi@msh.sa
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
