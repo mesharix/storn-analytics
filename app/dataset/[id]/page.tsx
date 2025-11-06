@@ -292,6 +292,20 @@ export default function DatasetPage() {
     const summaryWs = XLSX.utils.json_to_sheet(summaryData);
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Export Info');
 
+    // Sheet 5: Chart Instructions
+    const instructionsData = [
+      { 'Step': 1, 'Instruction': 'Go to the "Chart Data" sheet' },
+      { 'Step': 2, 'Instruction': 'Select all the data in the sheet' },
+      { 'Step': 3, 'Instruction': 'Click "Insert" tab in Excel' },
+      { 'Step': 4, 'Instruction': 'Choose your preferred chart type (Bar, Line, Pie, etc.)' },
+      { 'Step': 5, 'Instruction': 'Excel will automatically create a chart from your data' },
+      { 'Step': '', 'Instruction': '' },
+      { 'Step': 'Note', 'Instruction': 'The Chart Data sheet contains aggregated data ready for visualization' },
+      { 'Step': 'Tip', 'Instruction': 'For filtered results, use the Data sheet and create pivot tables' },
+    ];
+    const instructionsWs = XLSX.utils.json_to_sheet(instructionsData);
+    XLSX.utils.book_append_sheet(wb, instructionsWs, 'How to Create Charts');
+
     XLSX.writeFile(wb, `${dataset.name}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
