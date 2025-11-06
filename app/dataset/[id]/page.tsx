@@ -1,32 +1,31 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Table2, BarChart3, TrendingUp, Loader2,
   Download, Filter, PieChart, ScatterChart, Grid3X3, Activity, Target
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart as RePieChart,
-  Pie,
-  Cell,
-  ScatterChart as ReScatterChart,
-  Scatter,
-  ZAxis,
-  Treemap,
-} from 'recharts';
-import * as XLSX from 'xlsx';
+import dynamic from 'next/dynamic';
+
+// Lazy load Recharts components
+const BarChart = dynamic(() => import('recharts').then(mod => ({ default: mod.BarChart })), { ssr: false });
+const Bar = dynamic(() => import('recharts').then(mod => ({ default: mod.Bar })), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), { ssr: false });
+const Legend = dynamic(() => import('recharts').then(mod => ({ default: mod.Legend })), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })), { ssr: false });
+const LineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), { ssr: false });
+const Line = dynamic(() => import('recharts').then(mod => ({ default: mod.Line })), { ssr: false });
+const RePieChart = dynamic(() => import('recharts').then(mod => ({ default: mod.PieChart })), { ssr: false });
+const Pie = dynamic(() => import('recharts').then(mod => ({ default: mod.Pie })), { ssr: false });
+const Cell = dynamic(() => import('recharts').then(mod => ({ default: mod.Cell })), { ssr: false });
+// Lazy load XLSX for better initial load
+const XLSX = dynamic(() => import('xlsx'), { ssr: false });
+
 import {
   getUniqueValues,
   applyAdvancedFilters,
@@ -102,14 +101,19 @@ export default function DatasetPage() {
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [showAllFilters, setShowAllFilters] = useState(false);
 
   useEffect(() => {
     fetchDataset();
   }, [params.id]);
 
+  // Debounced filter application
   useEffect(() => {
     if (dataset) {
-      applyFilters();
+      const timeoutId = setTimeout(() => {
+        applyFilters();
+      }, 300); // 300ms debounce
+      return () => clearTimeout(timeoutId);
     }
   }, [filters, dataset]);
 
@@ -429,6 +433,22 @@ export default function DatasetPage() {
 
   const pieData = useMemo(() => chartData.slice(0, 10), [chartData]);
 
+  // Memoize table headers for performance
+  const tableHeaders = useMemo(() => {
+    if (filteredRecords.length === 0) return [];
+    return Object.keys(filteredRecords[0].data as Record<string, any>);
+  }, [filteredRecords]);
+
+  // Memoize paginated data
+  const paginatedData = useMemo(() => {
+    return filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+  }, [filteredRecords, currentPage, rowsPerPage]);
+
+  // Memoize filter columns (show only 6 by default, expand to show all)
+  const filterColumns = useMemo(() => {
+    return showAllFilters ? columns : columns.slice(0, 6);
+  }, [columns, showAllFilters]);
+
   const renderChart = () => {
     const data = chartData;
 
@@ -707,7 +727,7 @@ export default function DatasetPage() {
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {columns.slice(0, 12).map(column => {
+                    {filterColumns.map(column => {
                       const stat = columnStats.find(s => s.column === column);
                       const isNumeric = stat?.type === 'numeric';
                       const isDate = column.toLowerCase().includes('date') || column.toLowerCase().includes('تاريخ');
@@ -867,6 +887,18 @@ export default function DatasetPage() {
                       );
                     })}
                   </div>
+
+                  {/* Show More/Less Filters Button */}
+                  {columns.length > 6 && (
+                    <div className="mt-4 text-center">
+                      <button
+                        onClick={() => setShowAllFilters(!showAllFilters)}
+                        className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-lg text-sm font-medium transition-colors border border-indigo-500/30"
+                      >
+                        {showAllFilters ? `Show Less Filters (${filterColumns.length})` : `Show All Filters (${columns.length})`}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -874,7 +906,7 @@ export default function DatasetPage() {
                     <table className="min-w-full divide-y divide-indigo-500/20">
                       <thead className="bg-slate-800/50">
                         <tr>
-                          {Object.keys(filteredRecords[0].data as Record<string, any>).map((key) => (
+                          {tableHeaders.map((key) => (
                             <th
                               key={key}
                               className="px-6 py-3 text-left text-xs font-medium text-indigo-300 uppercase tracking-wider"
@@ -885,7 +917,7 @@ export default function DatasetPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-indigo-500/10">
-                        {filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((record, idx) => (
+                        {paginatedData.map((record, idx) => (
                           <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
                             {Object.values(record.data as Record<string, any>).map((value: any, i) => (
                               <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -1151,7 +1183,15 @@ export default function DatasetPage() {
                 </div>
 
                 <div className="bg-slate-900/50 rounded-lg p-6">
-                  {categoryColumn && ((chartMode === 'numeric' && valueColumn) || (chartMode === 'categorical' && secondCategoryColumn)) ? renderChart() : (
+                  {categoryColumn && ((chartMode === 'numeric' && valueColumn) || (chartMode === 'categorical' && secondCategoryColumn)) ? (
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                      </div>
+                    }>
+                      {renderChart()}
+                    </Suspense>
+                  ) : (
                     <div className="text-center py-12">
                       <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-400 text-lg font-semibold mb-2">Select data to visualize</p>
