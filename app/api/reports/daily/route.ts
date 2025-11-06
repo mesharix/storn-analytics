@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
       );
       report.customers = {
         totalCustomers: customerMetrics.totalCustomers,
-        averageCustomerValue: customerMetrics.averageCustomerValue,
+        averageCLV: customerMetrics.averageCLV,
         topCustomers: customerMetrics.topCustomers.slice(0, 10),
       };
     }
