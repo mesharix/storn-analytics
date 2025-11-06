@@ -274,12 +274,9 @@ export default function DatasetPage() {
     }
 
     // Sheet 3: Chart Data (if chart is configured)
-    if (categoryColumn && valueColumn) {
-      const chartData = prepareChartData();
-      if (chartData.length > 0) {
-        const chartWs = XLSX.utils.json_to_sheet(chartData);
-        XLSX.utils.book_append_sheet(wb, chartWs, 'Chart Data');
-      }
+    if (categoryColumn && valueColumn && chartData.length > 0) {
+      const chartWs = XLSX.utils.json_to_sheet(chartData);
+      XLSX.utils.book_append_sheet(wb, chartWs, 'Chart Data');
     }
 
     // Sheet 4: Summary Info
