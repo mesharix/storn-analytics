@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         isPublic: false,
         records: {
-          create: transformedOrders.map(order => ({
+          create: transformedOrders.map((order: any) => ({
             data: order,
           })),
         },
