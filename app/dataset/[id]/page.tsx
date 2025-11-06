@@ -817,7 +817,7 @@ export default function DatasetPage() {
                                 value={currentFilter.value || ''}
                                 onChange={(e) => setFilters({
                                   ...filters,
-                                  [column]: { operator: 'equals', value: e.target.value }
+                                  [column]: { operator: 'equals' as const, value: e.target.value }
                                 })}
                                 className="w-full px-3 py-2 bg-slate-700/70 border border-indigo-500/30 rounded-lg text-white text-sm focus:ring-2 focus:ring-indigo-500"
                               >
