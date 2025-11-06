@@ -261,7 +261,7 @@ export default function DatasetPage() {
         'Type': stat.type,
         'Total Count': stat.count,
         'Null Count': stat.nullCount,
-        'Unique Values': stat.uniqueCount,
+        'Unique Values': stat.unique,
         'Min': stat.min || 'N/A',
         'Max': stat.max || 'N/A',
         'Mean': stat.mean || 'N/A',
