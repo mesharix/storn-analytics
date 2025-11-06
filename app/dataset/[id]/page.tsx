@@ -192,6 +192,12 @@ export default function DatasetPage() {
     }
   };
 
+  // Memoized derived values
+  const summaryAnalysis = useMemo(() => dataset?.analyses.find(a => a.type === 'summary'), [dataset?.analyses]);
+  const columnStats: ColumnStat[] = useMemo(() => summaryAnalysis?.results?.columnStats || [], [summaryAnalysis]);
+  const correlationAnalysis = useMemo(() => dataset?.analyses.find(a => a.type === 'correlation'), [dataset?.analyses]);
+  const columns = useMemo(() => dataset?.records.length > 0 ? Object.keys(dataset.records[0].data as Record<string, any>) : [], [dataset?.records]);
+
   // Export Functions - Memoized callbacks
   const exportToCSV = useCallback(() => {
     if (!dataset) return;
@@ -540,11 +546,6 @@ export default function DatasetPage() {
       </div>
     );
   }
-
-  const summaryAnalysis = useMemo(() => dataset.analyses.find(a => a.type === 'summary'), [dataset.analyses]);
-  const columnStats: ColumnStat[] = useMemo(() => summaryAnalysis?.results?.columnStats || [], [summaryAnalysis]);
-  const correlationAnalysis = useMemo(() => dataset.analyses.find(a => a.type === 'correlation'), [dataset.analyses]);
-  const columns = useMemo(() => dataset.records.length > 0 ? Object.keys(dataset.records[0].data as Record<string, any>) : [], [dataset.records]);
 
   return (
     <div className="min-h-screen animated-bg">
