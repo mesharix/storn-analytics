@@ -98,6 +98,8 @@ export default function DatasetPage() {
   const [chartDateTo, setChartDateTo] = useState<string>('');
   const [filters, setFilters] = useState<Record<string, FilterCondition>>({});
   const [filteredRecords, setFilteredRecords] = useState<Array<{ data: any }>>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   useEffect(() => {
     fetchDataset();
@@ -143,6 +145,8 @@ export default function DatasetPage() {
         value: condition.value,
         value2: condition.value2
       }));
+
+    setCurrentPage(1); // Reset to first page when filters change
 
     if (filterConditions.length === 0) {
       setFilteredRecords(dataset.records);
@@ -806,7 +810,7 @@ export default function DatasetPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-indigo-500/10">
-                        {filteredRecords.slice(0, 100).map((record, idx) => (
+                        {filteredRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((record, idx) => (
                           <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
                             {Object.values(record.data as Record<string, any>).map((value: any, i) => (
                               <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
@@ -818,10 +822,45 @@ export default function DatasetPage() {
                       </tbody>
                     </table>
                   )}
-                  {filteredRecords.length > 100 && (
-                    <p className="text-sm text-gray-400 mt-4">
-                      Showing first 100 rows of {filteredRecords.length.toLocaleString()}
-                    </p>
+                  {filteredRecords.length > rowsPerPage && (
+                    <div className="flex items-center justify-between mt-4 px-4">
+                      <div className="flex items-center gap-4">
+                        <p className="text-sm text-gray-400">
+                          Showing {((currentPage - 1) * rowsPerPage) + 1} to {Math.min(currentPage * rowsPerPage, filteredRecords.length)} of {filteredRecords.length.toLocaleString()} rows
+                        </p>
+                        <select
+                          value={rowsPerPage}
+                          onChange={(e) => {
+                            setRowsPerPage(Number(e.target.value));
+                            setCurrentPage(1);
+                          }}
+                          className="bg-slate-800 text-white border border-indigo-500/30 rounded px-2 py-1 text-sm"
+                        >
+                          <option value={25}>25 rows</option>
+                          <option value={50}>50 rows</option>
+                          <option value={100}>100 rows</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:text-gray-500 text-white rounded text-sm transition-colors"
+                        >
+                          Previous
+                        </button>
+                        <span className="px-3 py-1 text-sm text-gray-300">
+                          Page {currentPage} of {Math.ceil(filteredRecords.length / rowsPerPage)}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage(Math.min(Math.ceil(filteredRecords.length / rowsPerPage), currentPage + 1))}
+                          disabled={currentPage >= Math.ceil(filteredRecords.length / rowsPerPage)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:text-gray-500 text-white rounded text-sm transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
                   )}
                   {filteredRecords.length === 0 && (
                     <p className="text-center text-gray-400 py-8">No records match the current filters</p>
