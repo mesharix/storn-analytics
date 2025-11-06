@@ -10,12 +10,13 @@ export async function GET(
       where: { id: params.id },
       include: {
         records: {
-          take: 1000, // Limit to first 1000 records for performance
+          take: 100, // Drastically reduced to 100 records for better performance
         },
         analyses: {
           orderBy: {
             createdAt: 'desc',
           },
+          take: 5, // Only fetch last 5 analyses
         },
       },
     });
