@@ -247,19 +247,52 @@ export default function DatasetPage() {
   const exportToExcel = () => {
     if (!dataset) return;
 
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Filtered Data
     const records = filteredRecords.map(r => r.data);
     const ws = XLSX.utils.json_to_sheet(records);
-    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
 
-    // Add statistics sheet if available
-    const summaryAnalysis = dataset.analyses.find(a => a.type === 'summary');
-    if (summaryAnalysis?.results?.columnStats) {
-      const statsWs = XLSX.utils.json_to_sheet(summaryAnalysis.results.columnStats);
+    // Sheet 2: Column Statistics
+    if (columnStats.length > 0) {
+      const statsData = columnStats.map(stat => ({
+        'Column': stat.column,
+        'Type': stat.type,
+        'Total Count': stat.count,
+        'Null Count': stat.nullCount,
+        'Unique Values': stat.uniqueCount,
+        'Min': stat.min || 'N/A',
+        'Max': stat.max || 'N/A',
+        'Mean': stat.mean || 'N/A',
+        'Median': stat.median || 'N/A',
+      }));
+      const statsWs = XLSX.utils.json_to_sheet(statsData);
       XLSX.utils.book_append_sheet(wb, statsWs, 'Statistics');
     }
 
-    XLSX.writeFile(wb, `${dataset.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    // Sheet 3: Chart Data (if chart is configured)
+    if (categoryColumn && valueColumn) {
+      const chartData = prepareChartData();
+      if (chartData.length > 0) {
+        const chartWs = XLSX.utils.json_to_sheet(chartData);
+        XLSX.utils.book_append_sheet(wb, chartWs, 'Chart Data');
+      }
+    }
+
+    // Sheet 4: Summary Info
+    const summaryData = [{
+      'Dataset Name': dataset.name,
+      'Export Date': new Date().toLocaleString(),
+      'Total Rows': dataset.rowCount,
+      'Filtered Rows': filteredRecords.length,
+      'Columns': columns.length,
+      'Filters Applied': Object.keys(filters).filter(k => filters[k].value).length,
+    }];
+    const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Export Info');
+
+    XLSX.writeFile(wb, `${dataset.name}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Chart Data Preparation
