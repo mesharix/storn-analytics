@@ -173,7 +173,7 @@ export default function Home() {
           <div className="glass-dark rounded-3xl p-8 hover-lift glow-purple">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-400 text-sm font-bold mb-2 uppercase tracking-wide">Analyses Run</p>
+                <p className="text-purple-400 text-sm font-bold mb-2 uppercase tracking-wide">Analysis Run</p>
                 <p className="text-5xl font-black text-white mb-2">
                   {datasets.reduce((sum, d) => sum + d._count.analyses, 0)}
                 </p>
@@ -314,7 +314,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-center md:text-left">
               <p className="text-gray-400 text-sm">
-                Built by <span className="text-indigo-400 font-semibold">Mesh Albogami</span>
+                Built by <span className="text-indigo-400 font-semibold">Meshari Albogami</span>
               </p>
               <p className="text-gray-500 text-xs mt-1">
                 © {new Date().getFullYear()} Data Analysis Platform. All rights reserved.

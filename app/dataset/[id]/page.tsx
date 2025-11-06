@@ -547,20 +547,6 @@ export default function DatasetPage() {
                 <Download className="w-4 h-4 mr-1" />
                 Excel
               </button>
-              <button
-                onClick={exportAsSQLInserts}
-                className="inline-flex items-center px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors shadow-lg"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                SQL
-              </button>
-              <button
-                onClick={exportAsJSON}
-                className="inline-flex items-center px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors shadow-lg"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                JSON
-              </button>
             </div>
           </div>
           <div className="flex items-center space-x-6 mt-6">
