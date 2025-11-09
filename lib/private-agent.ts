@@ -451,9 +451,16 @@ function getAgentHistory(sessionId: string): BaseMessage[] {
  */
 export async function analyzeWithPrivateAgent(request: PrivateAgentRequest): Promise<PrivateAgentResponse> {
   try {
-    // Initialize the GLM-4.6 model
+    // Get conversation history first to check if we have images
+    const sessionId = request.sessionId || 'default';
+    const history = getAgentHistory(sessionId);
+
+    // Check if we need vision capabilities
+    const hasImages = request.data?.images && Array.isArray(request.data.images) && request.data.images.length > 0;
+
+    // Initialize the appropriate model
     const model = new ChatOpenAI({
-      modelName: 'glm-4.6',
+      modelName: hasImages ? 'glm-4v' : 'glm-4.6',  // Use glm-4v for images
       temperature: 0.2,  // Lower for faster, more focused responses
       maxTokens: 2000,   // Reduced for faster responses
       configuration: {
@@ -461,10 +468,6 @@ export async function analyzeWithPrivateAgent(request: PrivateAgentRequest): Pro
         apiKey: process.env.ZAI_API_KEY,
       },
     });
-
-    // Get conversation history
-    const sessionId = request.sessionId || 'default';
-    const history = getAgentHistory(sessionId);
 
     // Format the data if provided
     let formattedData = '';
@@ -477,7 +480,7 @@ export async function analyzeWithPrivateAgent(request: PrivateAgentRequest): Pro
 
     // Check if we have images to process
     if (request.data?.images && Array.isArray(request.data.images)) {
-      // Multi-modal message with images
+      // Multi-modal message with images - z.ai GLM-4 format
       const textContent = `
 ${request.context ? `CONTEXT:\n${request.context}\n\n` : ''}${formattedData}
 
@@ -485,12 +488,12 @@ REQUEST:
 ${request.question}
 `.trim();
 
-      // Create content array with text and images
+      // Create content array with text and images for GLM-4V
       userMessageContent = [
         { type: 'text', text: textContent },
         ...request.data.images.map((img: string) => ({
           type: 'image_url',
-          image_url: { url: img },
+          image_url: img,  // z.ai expects just the URL string, not an object
         })),
       ];
     } else {
