@@ -106,7 +106,7 @@ export default function AIAnalystPage() {
     XLSX.writeFile(workbook, `${uploadedFileName}_data.csv`);
   };
 
-  // Download visualization data as Excel
+  // Download visualization data as Excel with visual representations
   const downloadVisualizationExcel = () => {
     if (!uploadedData || uploadedData.length === 0) return;
 
@@ -117,35 +117,159 @@ export default function AIAnalystPage() {
       const dataWs = XLSX.utils.json_to_sheet(uploadedData);
       XLSX.utils.book_append_sheet(wb, dataWs, 'Data');
 
-      // Add summary statistics if numeric columns exist
+      // Identify numeric and categorical columns
       const numericColumns: any[] = [];
+      const categoricalColumns: any[] = [];
       if (uploadedData.length > 0) {
         Object.keys(uploadedData[0]).forEach(key => {
-          if (typeof uploadedData[0][key] === 'number') {
+          const firstValue = uploadedData[0][key];
+          if (typeof firstValue === 'number') {
             numericColumns.push(key);
+          } else {
+            categoricalColumns.push(key);
           }
         });
       }
 
+      // Create comprehensive statistics sheet
       if (numericColumns.length > 0) {
-        const statsData: any[][] = [['Column', 'Count', 'Mean', 'Min', 'Max', 'Std Dev']];
+        const statsData: any[][] = [
+          ['NUMERICAL STATISTICS'],
+          [],
+          ['Column', 'Count', 'Mean', 'Median', 'Min', 'Max', 'Std Dev', 'Variance', '25th %ile', '75th %ile']
+        ];
 
         numericColumns.forEach(col => {
-          const values = uploadedData.map((row: any) => row[col]).filter((v: any) => typeof v === 'number');
+          const values = uploadedData.map((row: any) => row[col]).filter((v: any) => typeof v === 'number').sort((a: number, b: number) => a - b);
           const count = values.length;
           const mean = values.reduce((a: number, b: number) => a + b, 0) / count;
+          const median = values[Math.floor(count / 2)];
           const min = Math.min(...values);
           const max = Math.max(...values);
-          const stdDev = Math.sqrt(values.reduce((sum: number, val: number) => sum + Math.pow(val - mean, 2), 0) / count);
+          const variance = values.reduce((sum: number, val: number) => sum + Math.pow(val - mean, 2), 0) / count;
+          const stdDev = Math.sqrt(variance);
+          const q1 = values[Math.floor(count * 0.25)];
+          const q3 = values[Math.floor(count * 0.75)];
 
-          statsData.push([col, count, mean.toFixed(2), min, max, stdDev.toFixed(2)]);
+          statsData.push([col, count, mean.toFixed(2), median.toFixed(2), min, max, stdDev.toFixed(2), variance.toFixed(2), q1, q3]);
         });
 
         const statsWs = XLSX.utils.aoa_to_sheet(statsData);
+        statsWs['!cols'] = [{ wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }];
         XLSX.utils.book_append_sheet(wb, statsWs, 'Statistics');
       }
 
-      XLSX.writeFile(wb, `${uploadedFileName}_visualization.xlsx`);
+      // Create frequency distribution for categorical columns
+      if (categoricalColumns.length > 0) {
+        const freqData: any[][] = [
+          ['CATEGORICAL FREQUENCY DISTRIBUTIONS'],
+          []
+        ];
+
+        categoricalColumns.forEach(col => {
+          freqData.push([`Column: ${col}`], ['Value', 'Count', 'Percentage']);
+
+          const valueCounts: { [key: string]: number } = {};
+          uploadedData.forEach((row: any) => {
+            const value = String(row[col] || 'N/A');
+            valueCounts[value] = (valueCounts[value] || 0) + 1;
+          });
+
+          const total = uploadedData.length;
+          Object.entries(valueCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .forEach(([value, count]) => {
+              freqData.push([value, count, `${((count / total) * 100).toFixed(1)}%`]);
+            });
+
+          freqData.push([]);
+        });
+
+        const freqWs = XLSX.utils.aoa_to_sheet(freqData);
+        freqWs['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 12 }];
+        XLSX.utils.book_append_sheet(wb, freqWs, 'Frequencies');
+      }
+
+      // Create correlation matrix for numeric columns
+      if (numericColumns.length > 1) {
+        const corrData: any[][] = [
+          ['CORRELATION MATRIX'],
+          [],
+          ['', ...numericColumns]
+        ];
+
+        numericColumns.forEach(col1 => {
+          const row: any[] = [col1];
+          numericColumns.forEach(col2 => {
+            const values1 = uploadedData.map((r: any) => r[col1]).filter((v: any) => typeof v === 'number');
+            const values2 = uploadedData.map((r: any) => r[col2]).filter((v: any) => typeof v === 'number');
+
+            const mean1 = values1.reduce((a: number, b: number) => a + b, 0) / values1.length;
+            const mean2 = values2.reduce((a: number, b: number) => a + b, 0) / values2.length;
+
+            let numerator = 0;
+            let sum1 = 0;
+            let sum2 = 0;
+            for (let i = 0; i < values1.length; i++) {
+              const diff1 = values1[i] - mean1;
+              const diff2 = values2[i] - mean2;
+              numerator += diff1 * diff2;
+              sum1 += diff1 * diff1;
+              sum2 += diff2 * diff2;
+            }
+
+            const correlation = numerator / Math.sqrt(sum1 * sum2);
+            row.push(correlation.toFixed(3));
+          });
+          corrData.push(row);
+        });
+
+        const corrWs = XLSX.utils.aoa_to_sheet(corrData);
+        corrWs['!cols'] = [{ wch: 15 }, ...numericColumns.map(() => ({ wch: 12 }))];
+        XLSX.utils.book_append_sheet(wb, corrWs, 'Correlations');
+      }
+
+      // Create visual data distribution sheet (histogram-like representation)
+      if (numericColumns.length > 0) {
+        const visualData: any[][] = [
+          ['DATA DISTRIBUTION VISUAL REPRESENTATION'],
+          []
+        ];
+
+        numericColumns.slice(0, 3).forEach(col => {
+          visualData.push([`Distribution: ${col}`], ['Range', 'Count', 'Bar']);
+
+          const values = uploadedData.map((row: any) => row[col]).filter((v: any) => typeof v === 'number');
+          const min = Math.min(...values);
+          const max = Math.max(...values);
+          const binCount = 10;
+          const binSize = (max - min) / binCount;
+
+          const bins: number[] = new Array(binCount).fill(0);
+          values.forEach(v => {
+            const binIndex = Math.min(Math.floor((v - min) / binSize), binCount - 1);
+            bins[binIndex]++;
+          });
+
+          const maxCount = Math.max(...bins);
+          bins.forEach((count, i) => {
+            const rangeStart = (min + i * binSize).toFixed(2);
+            const rangeEnd = (min + (i + 1) * binSize).toFixed(2);
+            const barLength = Math.round((count / maxCount) * 50);
+            const bar = '█'.repeat(barLength);
+            visualData.push([`${rangeStart} - ${rangeEnd}`, count, bar]);
+          });
+
+          visualData.push([]);
+        });
+
+        const visualWs = XLSX.utils.aoa_to_sheet(visualData);
+        visualWs['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 60 }];
+        XLSX.utils.book_append_sheet(wb, visualWs, 'Visualizations');
+      }
+
+      XLSX.writeFile(wb, `${uploadedFileName}_analysis_with_visuals.xlsx`);
     } catch (error) {
       console.error('Error creating visualization Excel:', error);
       alert('Error creating visualization file.');
@@ -207,18 +331,19 @@ export default function AIAnalystPage() {
   };
 
   // Start analysis after language selection
-  const startAnalysis = async () => {
+  const startAnalysis = async (selectedLanguage: 'english' | 'arabic') => {
     if (!uploadedData || !uploadedFileName) return;
 
+    setLanguage(selectedLanguage);
     setShowLanguageSelector(false);
 
-    const languageInstruction = language === 'arabic'
+    const languageInstruction = selectedLanguage === 'arabic'
       ? 'Please provide the analysis in Arabic language (العربية).'
       : 'Please provide the analysis in English language.';
 
     const userMessage: Message = {
       role: 'user',
-      content: `🌐 Language: ${language === 'arabic' ? 'العربية (Arabic)' : 'English'}\n📊 Starting analysis...`,
+      content: `🌐 Language: ${selectedLanguage === 'arabic' ? 'العربية (Arabic)' : 'English'}\n📊 Starting analysis...`,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
@@ -635,15 +760,8 @@ export default function AIAnalystPage() {
 
             <div className="space-y-3">
               <button
-                onClick={() => {
-                  setLanguage('english');
-                  startAnalysis();
-                }}
-                className={`w-full p-4 rounded-xl border-2 transition-all ${
-                  language === 'english'
-                    ? 'border-indigo-500 bg-indigo-500/20'
-                    : 'border-slate-600 hover:border-indigo-400'
-                }`}
+                onClick={() => startAnalysis('english')}
+                className="w-full p-4 rounded-xl border-2 transition-all border-slate-600 hover:border-indigo-400"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇬🇧</span>
@@ -655,15 +773,8 @@ export default function AIAnalystPage() {
               </button>
 
               <button
-                onClick={() => {
-                  setLanguage('arabic');
-                  startAnalysis();
-                }}
-                className={`w-full p-4 rounded-xl border-2 transition-all ${
-                  language === 'arabic'
-                    ? 'border-indigo-500 bg-indigo-500/20'
-                    : 'border-slate-600 hover:border-indigo-400'
-                }`}
+                onClick={() => startAnalysis('arabic')}
+                className="w-full p-4 rounded-xl border-2 transition-all border-slate-600 hover:border-indigo-400"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">🇸🇦</span>
@@ -772,22 +883,24 @@ export default function AIAnalystPage() {
             </div>
 
             <div className="mt-6 bg-slate-800/50 rounded-xl p-6 border border-slate-700">
-              <h4 className="text-lg font-bold text-white mb-4">Export Options</h4>
+              <h4 className="text-lg font-bold text-white mb-4">Export with Visualizations</h4>
               <p className="text-slate-300 mb-4">
-                Download your data with visualizations in Excel format (XLSX) or use Power BI to create interactive dashboards.
+                Download your data with comprehensive visualizations and statistics in Excel format. The exported file includes:
               </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={downloadVisualizationExcel}
-                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
-                >
-                  <Download className="w-5 h-5" />
-                  Download as XLSX
-                </button>
-                <div className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-slate-300 rounded-lg">
-                  <span className="text-sm">Power BI: Import the XLSX file</span>
-                </div>
-              </div>
+              <ul className="text-slate-300 text-sm mb-4 space-y-1 ml-4">
+                <li>• Raw data sheet</li>
+                <li>• Statistical analysis (mean, median, std dev, percentiles)</li>
+                <li>• Correlation matrix for numeric columns</li>
+                <li>• Frequency distributions for categorical data</li>
+                <li>• Visual histogram representations</li>
+              </ul>
+              <button
+                onClick={downloadVisualizationExcel}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+              >
+                <Download className="w-5 h-5" />
+                Download Excel with Visualizations
+              </button>
             </div>
           </div>
         </div>
