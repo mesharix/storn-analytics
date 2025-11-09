@@ -354,147 +354,142 @@ export default function PrivateAgentPage() {
     setEditingAccount(null);
   };
 
-  // Download all journal entries as Excel
+  // Download all journal entries as Excel in Saudi accounting format
   const downloadJournalEntries = () => {
-    if (processedInvoicesCount === 0) {
-      alert('No invoices processed yet. Please upload and analyze invoices first.');
+    if (invoicesData.length === 0) {
+      alert('لا توجد فواتير للتصدير | No invoices to export');
       return;
     }
 
     try {
       const wb = XLSX.utils.book_new();
 
-      // Get all assistant messages that contain journal entries
-      const journalMessages = messages.filter(
-        (msg) => msg.role === 'assistant' && msg.content.includes('القيد المحاسبي')
-      );
+      // Create journal entries data in the exact format from the screenshot
+      const journalData: any[][] = [];
 
-      if (journalMessages.length === 0) {
-        alert('No journal entries found in the conversation.');
-        return;
-      }
+      // Header row (columns A-H)
+      journalData.push([
+        'التاريخ',           // A - Date
+        'رقم الفاتورة',     // B - Invoice Number
+        'البيان',           // C - Description
+        'رمز الحساب',       // D - Account Code
+        'اسم الحساب',       // E - Account Name
+        'مدين',             // F - Debit
+        'دائن',             // G - Credit
+        'ملاحظات',          // H - Notes
+      ]);
 
-      // Parse all entries
-      const allEntries: any[] = [];
-      journalMessages.forEach((msg, index) => {
-        const entries = parseJournalEntry(msg.content);
-        entries.forEach(entry => {
-          allEntries.push({
-            ...entry,
-            invoiceIndex: index + 1,
-          });
-        });
-      });
+      // Process each invoice and create journal entries
+      invoicesData.forEach((invoice) => {
+        // Find the matching account category
+        const categoryAccount = accounts.find(acc =>
+          invoice.accountCategory.includes(acc.nameAr) ||
+          invoice.accountCategory.includes(acc.nameEn)
+        );
 
-      if (allEntries.length === 0) {
-        alert('Could not parse journal entries. Please ensure the AI has generated proper accounting entries.');
-        return;
-      }
-
-      // Create main journal entries sheet with proper columns
-      const journalData: any[][] = [
-        ['القيود المحاسبية - Journal Entries'],
-        ['التاريخ | Date: ' + new Date().toLocaleString()],
-        ['عدد الفواتير | Total Invoices: ' + processedInvoicesCount],
-        [],
-        [
-          'رقم الفاتورة\nInvoice #',
-          'التاريخ\nDate',
-          'اسم المورد\nSupplier',
-          'الرقم الضريبي\nVAT Number',
-          'رقم الحساب\nAccount #',
-          'اسم الحساب\nAccount Name',
-          'مدين\nDebit',
-          'دائن\nCredit',
-          'المبلغ قبل الضريبة\nBefore Tax',
-          'ضريبة 15%\nVAT 15%',
-          'الإجمالي\nTotal',
-        ],
-      ];
-
-      allEntries.forEach((entry) => {
+        // Entry 1: Expense/Purchase with VAT Input
         journalData.push([
-          entry.invoiceNumber,
-          entry.date,
-          entry.supplier,
-          entry.vatNumber,
-          entry.accountNumber,
-          entry.accountName,
-          entry.debit || '',
-          entry.credit || '',
-          entry.beforeTax,
-          entry.vatAmount,
-          entry.total,
+          invoice.date,
+          invoice.invoiceNumber,
+          `فاتورة ${invoice.supplierName}`,  // Invoice from supplier
+          categoryAccount?.code || '6100',
+          `${categoryAccount?.nameAr || 'المشتريات'} - ${invoice.supplierName}`,
+          invoice.amountBeforeVat,
+          '',
+          'المبلغ الإجمالي'
         ]);
+
+        // Entry 2: VAT Input
+        journalData.push([
+          invoice.date,
+          invoice.invoiceNumber,
+          `فاتورة ${invoice.supplierName}`,
+          '2132',
+          `ضريبة ق.م - مدخلات - ${invoice.supplierName}`,
+          invoice.vatAmount,
+          '',
+          'إجمالي الفاتورة'
+        ]);
+
+        // Entry 3: Accounts Payable (Credit side) - based on accrual
+        if (invoice.paymentMethod === 'credit') {
+          journalData.push([
+            invoice.date,
+            invoice.invoiceNumber,
+            `سداد فاتورة ${invoice.supplierName}`,
+            '2110',
+            `الدائنون - ${invoice.supplierName}`,
+            '',
+            invoice.totalWithVat,
+            'سداد مستحقات'
+          ]);
+        } else if (invoice.paymentMethod === 'bank') {
+          journalData.push([
+            invoice.date,
+            invoice.invoiceNumber,
+            `سداد فاتورة ${invoice.supplierName}`,
+            '110201',
+            'البنك العربي الوطني',
+            '',
+            invoice.totalWithVat,
+            'طريقة الدفع'
+          ]);
+        } else if (invoice.paymentMethod === 'cash') {
+          journalData.push([
+            invoice.date,
+            invoice.invoiceNumber,
+            `سداد فاتورة ${invoice.supplierName}`,
+            '110101',
+            'النقدية في الخزينة',
+            '',
+            invoice.totalWithVat,
+            'طريقة الدفع'
+          ]);
+        }
+
+        // For accrual basis with credit payment, add the payment entry separately
+        if (invoice.paymentMethod === 'credit') {
+          journalData.push([
+            invoice.date,
+            invoice.invoiceNumber,
+            `سداد فاتورة ${invoice.supplierName}`,
+            '2110',
+            `الدائنون - ${invoice.supplierName}`,
+            invoice.totalWithVat,
+            '',
+            ''
+          ]);
+          journalData.push([
+            invoice.date,
+            invoice.invoiceNumber,
+            `سداد فاتورة ${invoice.supplierName}`,
+            '110101',
+            'النقدية في الخزينة',
+            '',
+            invoice.totalWithVat,
+            ''
+          ]);
+        }
       });
 
       const ws = XLSX.utils.aoa_to_sheet(journalData);
 
-      // Set column widths
+      // Set column widths to match the screenshot
       ws['!cols'] = [
-        { wch: 15 }, // Invoice #
-        { wch: 12 }, // Date
-        { wch: 25 }, // Supplier
-        { wch: 18 }, // VAT Number
-        { wch: 12 }, // Account #
-        { wch: 35 }, // Account Name
-        { wch: 15 }, // Debit
-        { wch: 15 }, // Credit
-        { wch: 15 }, // Before Tax
-        { wch: 15 }, // VAT
-        { wch: 15 }, // Total
+        { wch: 12 },  // A - التاريخ
+        { wch: 12 },  // B - رقم الفاتورة
+        { wch: 45 },  // C - البيان
+        { wch: 10 },  // D - رمز الحساب
+        { wch: 35 },  // E - اسم الحساب
+        { wch: 12 },  // F - مدين
+        { wch: 12 },  // G - دائن
+        { wch: 25 },  // H - ملاحظات
       ];
 
-      XLSX.utils.book_append_sheet(wb, ws, 'Journal Entries');
-
-      // Create summary sheet by invoice
-      const summaryData: any[][] = [
-        ['ملخص القيود حسب الفاتورة - Summary by Invoice'],
-        [],
-        ['رقم\n#', 'رقم الفاتورة\nInvoice', 'المورد\nSupplier', 'التاريخ\nDate', 'المبلغ قبل الضريبة\nBefore VAT', 'الضريبة 15%\nVAT', 'الإجمالي\nTotal'],
-      ];
-
-      const invoiceSummaries = new Map<string, any>();
-      allEntries.forEach((entry) => {
-        if (!invoiceSummaries.has(entry.invoiceNumber)) {
-          invoiceSummaries.set(entry.invoiceNumber, {
-            invoiceNumber: entry.invoiceNumber,
-            supplier: entry.supplier,
-            date: entry.date,
-            beforeTax: entry.beforeTax,
-            vatAmount: entry.vatAmount,
-            total: entry.total,
-            index: entry.invoiceIndex,
-          });
-        }
-      });
-
-      Array.from(invoiceSummaries.values()).forEach((inv) => {
-        summaryData.push([
-          inv.index,
-          inv.invoiceNumber,
-          inv.supplier,
-          inv.date,
-          inv.beforeTax,
-          inv.vatAmount,
-          inv.total,
-        ]);
-      });
-
-      const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-      summaryWs['!cols'] = [
-        { wch: 8 },
-        { wch: 15 },
-        { wch: 25 },
-        { wch: 12 },
-        { wch: 15 },
-        { wch: 12 },
-        { wch: 15 },
-      ];
-      XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+      XLSX.utils.book_append_sheet(wb, ws, 'القيود المحاسبية');
 
       // Download the file
-      const filename = `journal_entries_${processedInvoicesCount}_invoices_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const filename = `journal_entries_${companySettings.companyName}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, filename);
     } catch (error) {
       console.error('Error creating Excel file:', error);
