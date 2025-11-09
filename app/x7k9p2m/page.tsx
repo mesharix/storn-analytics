@@ -25,6 +25,21 @@ interface JournalEntry {
   total: number;
 }
 
+interface InvoiceData {
+  id: string;
+  date: string;
+  invoiceNumber: string;
+  supplierName: string;
+  supplierVatNumber: string;
+  amountBeforeVat: number;
+  vatAmount: number;
+  totalWithVat: number;
+  accountCategory: string;
+  paymentMethod: 'cash' | 'credit' | 'bank' | 'other';
+  vatCompliant: boolean;
+  notes: string;
+}
+
 interface Account {
   code: string;
   nameAr: string;
@@ -104,6 +119,8 @@ export default function PrivateAgentPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [processedInvoicesCount, setProcessedInvoicesCount] = useState(0);
+  const [invoicesData, setInvoicesData] = useState<InvoiceData[]>([]);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(`private-${Date.now()}`);
@@ -162,13 +179,70 @@ export default function PrivateAgentPage() {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Parse journal entries from AI response
-  const parseAndStoreJournalEntries = (content: string, invoiceCount: number) => {
+  // Parse invoice data from AI response and store in invoicesData
+  const parseAndStoreInvoiceData = (content: string, imageCount: number) => {
     // Update processed invoices count
-    setProcessedInvoicesCount((prev) => prev + invoiceCount);
+    setProcessedInvoicesCount((prev) => prev + imageCount);
 
-    // Store the raw content for later parsing when downloading
-    // For now, we'll just count the invoices
+    // Extract invoice data from the AI response
+    const newInvoices: InvoiceData[] = [];
+
+    // Try to find invoice sections in the response
+    const invoiceSections = content.split(/(?:فاتورة رقم|Invoice Number|رقم الفاتورة)/i);
+
+    invoiceSections.slice(1).forEach((section, index) => {
+      try {
+        // Extract data using regex patterns
+        const invoiceNumberMatch = section.match(/[:#\s]*([A-Z0-9\-\/]+)/i);
+        const dateMatch = section.match(/(?:التاريخ|Date)[:\s]+([0-9\-\/]+)/i);
+        const supplierMatch = section.match(/(?:اسم المورد|Supplier)[:\s]+([^\n]+)/i);
+        const vatNumberMatch = section.match(/(?:الرقم الضريبي|VAT Number)[:\s]+([0-9\-]+)/i);
+        const beforeTaxMatch = section.match(/(?:المبلغ قبل الضريبة|Amount before tax)[:\s]+([0-9,.]+)/i);
+        const vatAmountMatch = section.match(/(?:ضريبة القيمة المضافة|VAT)[:\s\(15%\)]*[:\s]+([0-9,.]+)/i);
+        const totalMatch = section.match(/(?:الإجمالي|Total)[:\s]+([0-9,.]+)/i);
+
+        // Try to determine account category from the entries
+        let accountCategory = 'مصروفات عمومية | General Expenses';
+        if (section.match(/المشتريات|Purchases/i)) accountCategory = 'مشتريات | Purchases';
+        else if (section.match(/إيجار|Rent/i)) accountCategory = 'إيجارات | Rent';
+        else if (section.match(/رواتب|Salaries/i)) accountCategory = 'رواتب | Salaries';
+        else if (section.match(/كهرباء|Utilities/i)) accountCategory = 'مرافق | Utilities';
+
+        // Determine payment method (default to credit/accrual basis)
+        let paymentMethod: 'cash' | 'credit' | 'bank' | 'other' = 'credit';
+        if (section.match(/نقد|Cash|الصندوق/i)) paymentMethod = 'cash';
+        else if (section.match(/بنك|Bank/i)) paymentMethod = 'bank';
+
+        // Check VAT compliance
+        const vatCompliant = !!(vatNumberMatch && vatNumberMatch[1].replace(/[^0-9]/g, '').length === 15);
+
+        const invoiceData: InvoiceData = {
+          id: `inv-${Date.now()}-${index}`,
+          date: dateMatch ? dateMatch[1].trim() : new Date().toISOString().split('T')[0],
+          invoiceNumber: invoiceNumberMatch ? invoiceNumberMatch[1].trim() : `INV-${index + 1}`,
+          supplierName: supplierMatch ? supplierMatch[1].trim() : '',
+          supplierVatNumber: vatNumberMatch ? vatNumberMatch[1].trim() : '',
+          amountBeforeVat: beforeTaxMatch ? parseFloat(beforeTaxMatch[1].replace(/,/g, '')) : 0,
+          vatAmount: vatAmountMatch ? parseFloat(vatAmountMatch[1].replace(/,/g, '')) : 0,
+          totalWithVat: totalMatch ? parseFloat(totalMatch[1].replace(/,/g, '')) : 0,
+          accountCategory,
+          paymentMethod,
+          vatCompliant,
+          notes: '',
+        };
+
+        // Only add if we have at least invoice number and total
+        if (invoiceData.invoiceNumber && invoiceData.totalWithVat > 0) {
+          newInvoices.push(invoiceData);
+        }
+      } catch (error) {
+        console.error('Error parsing invoice section:', error);
+      }
+    });
+
+    if (newInvoices.length > 0) {
+      setInvoicesData((prev) => [...prev, ...newInvoices]);
+    }
   };
 
   // Parse accounting entries from AI response
@@ -492,10 +566,10 @@ ${accounts.map(acc => `${acc.code} - ${companySettings.language === 'arabic' ? a
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Extract journal entries from response if present
+      // Extract invoice data from response if present
       if (imagesToSend.length > 0 && data.content) {
-        // Parse journal entries from the AI response
-        parseAndStoreJournalEntries(data.content, imagesToSend.length);
+        // Parse invoice data from the AI response
+        parseAndStoreInvoiceData(data.content, imagesToSend.length);
       }
     } catch (error: any) {
       const errorMessage: Message = {
@@ -520,7 +594,27 @@ ${accounts.map(acc => `${acc.code} - ${companySettings.language === 'arabic' ? a
     setUploadedImages([]);
     setProcessedInvoicesCount(0);
     setJournalEntries([]);
+    setInvoicesData([]);
     sessionId.current = `private-${Date.now()}`;
+  };
+
+  // Invoice management functions
+  const deleteInvoice = (id: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذه الفاتورة؟ | Are you sure you want to delete this invoice?')) {
+      return;
+    }
+    setInvoicesData((prev) => prev.filter((inv) => inv.id !== id));
+    setProcessedInvoicesCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const updateInvoice = (id: string, updatedData: Partial<InvoiceData>) => {
+    setInvoicesData((prev) =>
+      prev.map((inv) => (inv.id === id ? { ...inv, ...updatedData } : inv))
+    );
+  };
+
+  const saveInvoiceEdit = (id: string) => {
+    setEditingInvoiceId(null);
   };
 
   return (
@@ -1044,6 +1138,218 @@ ${accounts.map(acc => `${acc.code} - ${companySettings.language === 'arabic' ? a
             </form>
           </div>
         </div>
+
+        {/* Invoice Summary Table */}
+        {invoicesData.length > 0 && (
+          <div className="mt-6 bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-emerald-500/30 shadow-2xl overflow-hidden">
+            <div className="p-6 bg-gradient-to-r from-emerald-600/20 to-green-600/20 border-b border-emerald-500/30">
+              <h2 className="text-2xl font-bold text-white">ملخص الفواتير | Invoices Summary</h2>
+              <p className="text-sm text-emerald-300 mt-1">
+                إجمالي الفواتير | Total Invoices: <span className="font-bold">{invoicesData.length}</span>
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-900/50 border-b border-slate-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-emerald-300 font-semibold">التاريخ<br/>Date</th>
+                    <th className="px-4 py-3 text-left text-emerald-300 font-semibold">رقم الفاتورة<br/>Invoice #</th>
+                    <th className="px-4 py-3 text-left text-emerald-300 font-semibold">اسم المورد<br/>Supplier</th>
+                    <th className="px-4 py-3 text-left text-emerald-300 font-semibold">الرقم الضريبي<br/>VAT #</th>
+                    <th className="px-4 py-3 text-right text-emerald-300 font-semibold">قبل الضريبة<br/>Before VAT</th>
+                    <th className="px-4 py-3 text-right text-emerald-300 font-semibold">الضريبة<br/>VAT</th>
+                    <th className="px-4 py-3 text-right text-emerald-300 font-semibold">الإجمالي<br/>Total</th>
+                    <th className="px-4 py-3 text-left text-emerald-300 font-semibold">التصنيف<br/>Category</th>
+                    <th className="px-4 py-3 text-left text-emerald-300 font-semibold">الدفع<br/>Payment</th>
+                    <th className="px-4 py-3 text-center text-emerald-300 font-semibold">استيفاء<br/>VAT Met</th>
+                    <th className="px-4 py-3 text-center text-emerald-300 font-semibold">إجراءات<br/>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoicesData.map((invoice) => (
+                    <tr key={invoice.id} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+                      {editingInvoiceId === invoice.id ? (
+                        // Edit Mode
+                        <>
+                          <td className="px-4 py-3">
+                            <input
+                              type="date"
+                              value={invoice.date}
+                              onChange={(e) => updateInvoice(invoice.id, { date: e.target.value })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={invoice.invoiceNumber}
+                              onChange={(e) => updateInvoice(invoice.id, { invoiceNumber: e.target.value })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={invoice.supplierName}
+                              onChange={(e) => updateInvoice(invoice.id, { supplierName: e.target.value })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={invoice.supplierVatNumber}
+                              onChange={(e) => updateInvoice(invoice.id, { supplierVatNumber: e.target.value })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              maxLength={15}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              value={invoice.amountBeforeVat}
+                              onChange={(e) => updateInvoice(invoice.id, { amountBeforeVat: parseFloat(e.target.value) })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              step="0.01"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              value={invoice.vatAmount}
+                              onChange={(e) => updateInvoice(invoice.id, { vatAmount: parseFloat(e.target.value) })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              step="0.01"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              value={invoice.totalWithVat}
+                              onChange={(e) => updateInvoice(invoice.id, { totalWithVat: parseFloat(e.target.value) })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              step="0.01"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={invoice.accountCategory}
+                              onChange={(e) => updateInvoice(invoice.id, { accountCategory: e.target.value })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={invoice.paymentMethod}
+                              onChange={(e) => updateInvoice(invoice.id, { paymentMethod: e.target.value as any })}
+                              className="w-full bg-slate-700 text-white px-2 py-1 rounded text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              <option value="cash">نقد | Cash</option>
+                              <option value="credit">آجل | Credit</option>
+                              <option value="bank">بنك | Bank</option>
+                              <option value="other">أخرى | Other</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={invoice.vatCompliant}
+                              onChange={(e) => updateInvoice(invoice.id, { vatCompliant: e.target.checked })}
+                              className="w-4 h-4 text-emerald-600 bg-slate-700 border-emerald-500 rounded focus:ring-emerald-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => saveInvoiceEdit(invoice.id)}
+                              className="text-green-400 hover:text-green-300 transition-colors"
+                              title="Save"
+                            >
+                              <Save className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        // View Mode
+                        <>
+                          <td className="px-4 py-3 text-slate-300">{invoice.date}</td>
+                          <td className="px-4 py-3 text-white font-semibold">{invoice.invoiceNumber}</td>
+                          <td className="px-4 py-3 text-slate-300">{invoice.supplierName}</td>
+                          <td className="px-4 py-3 text-slate-400 font-mono text-xs">
+                            {invoice.supplierVatNumber || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-300">
+                            {invoice.amountBeforeVat.toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                          </td>
+                          <td className="px-4 py-3 text-right text-yellow-300">
+                            {invoice.vatAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-300 font-bold">
+                            {invoice.totalWithVat.toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                          </td>
+                          <td className="px-4 py-3 text-slate-300 text-xs">{invoice.accountCategory}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              invoice.paymentMethod === 'cash' ? 'bg-green-600/20 text-green-300' :
+                              invoice.paymentMethod === 'bank' ? 'bg-blue-600/20 text-blue-300' :
+                              invoice.paymentMethod === 'credit' ? 'bg-orange-600/20 text-orange-300' :
+                              'bg-slate-600/20 text-slate-300'
+                            }`}>
+                              {invoice.paymentMethod === 'cash' ? 'نقد' :
+                               invoice.paymentMethod === 'bank' ? 'بنك' :
+                               invoice.paymentMethod === 'credit' ? 'آجل' : 'أخرى'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {invoice.vatCompliant ? (
+                              <span className="text-green-400 text-xl">✓</span>
+                            ) : (
+                              <span className="text-red-400 text-xl">✗</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => setEditingInvoiceId(invoice.id)}
+                                className="text-blue-400 hover:text-blue-300 transition-colors"
+                                title="Edit | تعديل"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => deleteInvoice(invoice.id)}
+                                className="text-red-400 hover:text-red-300 transition-colors"
+                                title="Delete | حذف"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-slate-900/50 border-t-2 border-emerald-500/50">
+                  <tr>
+                    <td colSpan={4} className="px-4 py-3 text-right text-white font-bold">الإجمالي | Total:</td>
+                    <td className="px-4 py-3 text-right text-white font-bold">
+                      {invoicesData.reduce((sum, inv) => sum + inv.amountBeforeVat, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                    </td>
+                    <td className="px-4 py-3 text-right text-yellow-300 font-bold">
+                      {invoicesData.reduce((sum, inv) => sum + inv.vatAmount, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                    </td>
+                    <td className="px-4 py-3 text-right text-emerald-300 font-bold text-lg">
+                      {invoicesData.reduce((sum, inv) => sum + inv.totalWithVat, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ر.س
+                    </td>
+                    <td colSpan={4}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-4 text-center">
