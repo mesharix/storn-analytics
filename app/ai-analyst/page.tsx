@@ -271,7 +271,18 @@ export default function AIAnalystPage() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">AI Data Analyst</h1>
-                <p className="text-sm text-slate-400">Developed by Msh (hi@msh.sa)</p>
+                <p className="text-sm text-slate-400">
+                  Developed by{' '}
+                  <a
+                    href="https://x.com/mshalbogami"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+                  >
+                    Msh
+                  </a>
+                  {' '}(hi@msh.sa)
+                </p>
               </div>
             </div>
           </div>
@@ -471,7 +482,15 @@ export default function AIAnalystPage() {
 
             <div className="mt-8 pt-6 border-t border-slate-700/50">
               <p className="text-xs text-slate-400 text-center">
-                Developed by <span className="text-indigo-400 font-semibold">Msh</span>
+                Developed by{' '}
+                <a
+                  href="https://x.com/mshalbogami"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 transition-colors font-semibold"
+                >
+                  Msh
+                </a>
               </p>
               <p className="text-xs text-slate-500 text-center mt-1">
                 hi@msh.sa
