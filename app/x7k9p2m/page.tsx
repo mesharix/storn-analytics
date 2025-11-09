@@ -1,14 +1,28 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import { Send, Sparkles, Loader2, Trash2, Image as ImageIcon, X, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import * as XLSX from 'xlsx';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   images?: string[];
+}
+
+interface JournalEntry {
+  invoiceNumber: string;
+  date: string;
+  supplier: string;
+  entries: Array<{
+    accountNumber: string;
+    accountName: string;
+    debit: number;
+    credit: number;
+  }>;
+  total: number;
 }
 
 export default function PrivateAgentPage() {
@@ -22,6 +36,8 @@ export default function PrivateAgentPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [processedInvoicesCount, setProcessedInvoicesCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(`private-${Date.now()}`);
@@ -53,6 +69,73 @@ export default function PrivateAgentPage() {
 
   const removeImage = (index: number) => {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Parse journal entries from AI response
+  const parseAndStoreJournalEntries = (content: string, invoiceCount: number) => {
+    // Update processed invoices count
+    setProcessedInvoicesCount((prev) => prev + invoiceCount);
+
+    // Store the raw content for later parsing when downloading
+    // For now, we'll just count the invoices
+  };
+
+  // Download all journal entries as Excel
+  const downloadJournalEntries = () => {
+    if (processedInvoicesCount === 0) {
+      alert('No invoices processed yet. Please upload and analyze invoices first.');
+      return;
+    }
+
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Get all assistant messages that contain journal entries
+      const journalMessages = messages.filter(
+        (msg) => msg.role === 'assistant' && msg.content.includes('القيد المحاسبي')
+      );
+
+      if (journalMessages.length === 0) {
+        alert('No journal entries found in the conversation.');
+        return;
+      }
+
+      // Create summary sheet
+      const summaryData: any[][] = [
+        ['Journal Entries Export - قيود محاسبية'],
+        ['Generated Date: ' + new Date().toLocaleString()],
+        ['Total Invoices Processed: ' + processedInvoicesCount],
+        [],
+        ['All Journal Entries:'],
+        [],
+      ];
+
+      journalMessages.forEach((msg, index) => {
+        summaryData.push([`Invoice ${index + 1} - فاتورة ${index + 1}`]);
+        summaryData.push([]);
+
+        // Split content by lines and add to sheet
+        const lines = msg.content.split('\n');
+        lines.forEach((line) => {
+          summaryData.push([line]);
+        });
+
+        summaryData.push([]);
+        summaryData.push(['---']);
+        summaryData.push([]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(summaryData);
+      ws['!cols'] = [{ wch: 120 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'All Journal Entries');
+
+      // Download the file
+      const filename = `journal_entries_${processedInvoicesCount}_invoices_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    } catch (error) {
+      console.error('Error creating Excel file:', error);
+      alert('Error creating Excel file. Please try again.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +179,12 @@ export default function PrivateAgentPage() {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Extract journal entries from response if present
+      if (imagesToSend.length > 0 && data.content) {
+        // Parse journal entries from the AI response
+        parseAndStoreJournalEntries(data.content, imagesToSend.length);
+      }
     } catch (error: any) {
       const errorMessage: Message = {
         role: 'assistant',
@@ -117,6 +206,8 @@ export default function PrivateAgentPage() {
       },
     ]);
     setUploadedImages([]);
+    setProcessedInvoicesCount(0);
+    setJournalEntries([]);
     sessionId.current = `private-${Date.now()}`;
   };
 
@@ -134,16 +225,34 @@ export default function PrivateAgentPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">مساعد المحاسبة الذكي | AI Accounting Assistant</h1>
-                <p className="text-sm text-emerald-300">Saudi Accounting Expert • ZATCA Compliant</p>
+                <p className="text-sm text-emerald-300">
+                  Saudi Accounting Expert • ZATCA Compliant
+                  {processedInvoicesCount > 0 && (
+                    <span className="ml-3 px-3 py-1 bg-emerald-600/30 rounded-lg text-xs">
+                      📋 {processedInvoicesCount} فاتورة | {processedInvoicesCount} Invoice{processedInvoicesCount > 1 ? 's' : ''} Processed
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
-            <button
-              onClick={clearChat}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-300 rounded-lg transition-colors border border-red-500/30"
-            >
-              <Trash2 className="w-4 h-4" />
-              مسح | Clear
-            </button>
+            <div className="flex items-center gap-3">
+              {processedInvoicesCount > 0 && (
+                <button
+                  onClick={downloadJournalEntries}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-300 rounded-lg transition-colors border border-green-500/30"
+                >
+                  <Download className="w-4 h-4" />
+                  تحميل القيود | Download Entries
+                </button>
+              )}
+              <button
+                onClick={clearChat}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-300 rounded-lg transition-colors border border-red-500/30"
+              >
+                <Trash2 className="w-4 h-4" />
+                مسح | Clear
+              </button>
+            </div>
           </div>
         </div>
 
