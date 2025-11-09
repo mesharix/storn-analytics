@@ -247,7 +247,7 @@ export default function AIAnalystPage() {
           const binSize = (max - min) / binCount;
 
           const bins: number[] = new Array(binCount).fill(0);
-          values.forEach(v => {
+          values.forEach((v: number) => {
             const binIndex = Math.min(Math.floor((v - min) / binSize), binCount - 1);
             bins[binIndex]++;
           });
