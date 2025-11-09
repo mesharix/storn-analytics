@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import AIChatWidget from "@/components/ai-chat-widget";
 
 export const metadata: Metadata = {
   title: "Data Analysis - Professional Analytics Platform",
@@ -18,7 +17,6 @@ export default function RootLayout({
       <body className="antialiased bg-gray-50">
         <Providers>
           {children}
-          <AIChatWidget />
         </Providers>
       </body>
     </html>
