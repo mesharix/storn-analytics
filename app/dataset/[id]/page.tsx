@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Table2, BarChart3, TrendingUp, Loader2,
-  Download, Filter, PieChart, ScatterChart, Grid3X3, Activity, Target
+  Download, Filter, PieChart, ScatterChart, Grid3X3, Activity, Target, Sparkles, Send
 } from 'lucide-react';
 import {
   BarChart,
@@ -38,6 +38,7 @@ import {
   DISTINCTCOUNT,
   FilterCondition
 } from '@/lib/powerbi-analytics';
+import { analyzeWithGLM, QUICK_QUESTIONS } from '@/lib/glm-agent';
 import { EcommerceAnalysisButtons } from '@/components/EcommerceAnalysisButtons';
 import { EcommerceInsights } from '@/components/EcommerceInsights';
 
@@ -85,7 +86,7 @@ export default function DatasetPage() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'insights' | 'charts' | 'kpis'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'stats' | 'insights' | 'charts' | 'kpis' | 'ai'>('data');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'scatter' | 'treemap'>('bar');
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [categoryColumn, setCategoryColumn] = useState<string>('');
@@ -100,6 +101,12 @@ export default function DatasetPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [showAllFilters, setShowAllFilters] = useState(false);
+
+  // AI Agent state
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiChatHistory, setAiChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
 
   useEffect(() => {
     fetchDataset();
@@ -191,6 +198,47 @@ export default function DatasetPage() {
       alert('Failed to run analysis. Please try again.');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // AI Agent function
+  const askAIAgent = async (question?: string) => {
+    const queryText = question || aiQuestion;
+    if (!queryText.trim() || !dataset) return;
+
+    setAiLoading(true);
+    setAiResponse('');
+
+    // Add user message to chat history
+    setAiChatHistory(prev => [...prev, { role: 'user', content: queryText }]);
+
+    try {
+      const result = await analyzeWithGLM({
+        dataset,
+        question: queryText,
+        columns,
+        recordCount: filteredRecords.length
+      });
+
+      if (result.error) {
+        setAiResponse(`Error: ${result.error}`);
+        setAiChatHistory(prev => [...prev, { role: 'assistant', content: `Error: ${result.error}` }]);
+      } else {
+        setAiResponse(result.content);
+        setAiChatHistory(prev => [...prev, { role: 'assistant', content: result.content }]);
+      }
+
+      // Clear the input if it was from the text field
+      if (!question) {
+        setAiQuestion('');
+      }
+    } catch (error) {
+      console.error('AI Agent Error:', error);
+      const errorMsg = 'Failed to get AI response. Please try again.';
+      setAiResponse(errorMsg);
+      setAiChatHistory(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -721,6 +769,20 @@ export default function DatasetPage() {
                 KPIs
                 {activeTab === 'kpis' && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-t-full shadow-lg shadow-indigo-500/50"></div>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('ai')}
+                className={`px-8 py-5 font-bold text-sm transition-all relative ${
+                  activeTab === 'ai'
+                    ? 'text-indigo-400'
+                    : 'text-gray-400 hover:text-gray-300 hover:bg-slate-700/30'
+                }`}
+              >
+                <Sparkles className="w-5 h-5 inline mr-2" />
+                AI Assistant
+                {activeTab === 'ai' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 rounded-t-full shadow-lg shadow-purple-500/50"></div>
                 )}
               </button>
             </nav>
@@ -1540,6 +1602,164 @@ export default function DatasetPage() {
                     <p className="text-gray-500 text-sm">Upload a dataset to see KPI metrics</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* AI Assistant Tab */}
+            {activeTab === 'ai' && (
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="bg-gradient-to-br from-indigo-600/20 via-purple-600/20 to-pink-600/20 p-6 rounded-xl border border-indigo-500/30">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Sparkles className="w-6 h-6 text-purple-400" />
+                    <h2 className="text-2xl font-bold text-white">AI Data Assistant</h2>
+                    <span className="px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full text-xs font-semibold text-purple-300 border border-purple-500/30">
+                      Powered by GLM-4.6
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Ask questions about your dataset and get intelligent insights powered by advanced AI
+                  </p>
+                </div>
+
+                {/* Quick Questions */}
+                <div className="glass p-6 rounded-xl border border-indigo-500/30">
+                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-indigo-400" />
+                    Quick Questions
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {QUICK_QUESTIONS.map((question, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => askAIAgent(question)}
+                        disabled={aiLoading}
+                        className="text-left px-4 py-3 bg-slate-800/50 hover:bg-indigo-600/20 border border-slate-700 hover:border-indigo-500/50 rounded-lg text-sm text-gray-300 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Chat Interface */}
+                <div className="glass p-6 rounded-xl border border-indigo-500/30">
+                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-indigo-400" />
+                    Conversation
+                  </h3>
+
+                  {/* Chat History */}
+                  {aiChatHistory.length > 0 && (
+                    <div className="mb-4 space-y-3 max-h-96 overflow-y-auto pr-2">
+                      {aiChatHistory.map((msg, idx) => (
+                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] rounded-lg p-4 ${
+                            msg.role === 'user'
+                              ? 'bg-indigo-600/30 border border-indigo-500/50 text-white'
+                              : 'bg-slate-800/80 border border-slate-700 text-gray-200'
+                          }`}>
+                            <div className="flex items-start gap-2 mb-1">
+                              {msg.role === 'assistant' && <Sparkles className="w-4 h-4 text-purple-400 mt-1 flex-shrink-0" />}
+                              <p className="text-xs font-semibold uppercase tracking-wider {msg.role === 'user' ? 'text-indigo-300' : 'text-purple-400'}">
+                                {msg.role === 'user' ? 'You' : 'AI Assistant'}
+                              </p>
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {aiLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-slate-800/80 border border-slate-700 rounded-lg p-4 max-w-[80%]">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                              <p className="text-sm text-gray-400">AI is thinking...</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Input Area */}
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={aiQuestion}
+                        onChange={(e) => setAiQuestion(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && askAIAgent()}
+                        placeholder="Ask me anything about your data..."
+                        disabled={aiLoading}
+                        className="flex-1 px-4 py-3 bg-slate-800/50 border border-indigo-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <button
+                        onClick={() => askAIAgent()}
+                        disabled={aiLoading || !aiQuestion.trim()}
+                        className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-lg transition-all font-medium flex items-center gap-2 disabled:cursor-not-allowed"
+                      >
+                        {aiLoading ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-5 h-5" />
+                            Ask AI
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {aiChatHistory.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setAiChatHistory([]);
+                          setAiResponse('');
+                        }}
+                        className="text-sm text-gray-400 hover:text-red-400 transition-colors"
+                      >
+                        Clear conversation
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Empty State */}
+                  {aiChatHistory.length === 0 && !aiLoading && (
+                    <div className="text-center py-12">
+                      <Sparkles className="w-16 h-16 text-purple-400/50 mx-auto mb-4" />
+                      <p className="text-gray-400 text-lg font-semibold mb-2">Start a conversation</p>
+                      <p className="text-gray-500 text-sm">
+                        Ask questions about your dataset or use one of the quick questions above
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dataset Info Card */}
+                <div className="glass p-6 rounded-xl border border-indigo-500/30">
+                  <h3 className="text-lg font-bold text-white mb-4">Dataset Information</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-slate-800/50 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">Total Records</p>
+                      <p className="text-white text-xl font-bold">{dataset?.rowCount || 0}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">Columns</p>
+                      <p className="text-white text-xl font-bold">{columns.length}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">Filtered Records</p>
+                      <p className="text-white text-xl font-bold">{filteredRecords.length}</p>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-lg p-3">
+                      <p className="text-gray-400 text-xs mb-1">Analyses</p>
+                      <p className="text-white text-xl font-bold">{dataset?.analyses?.length || 0}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
