@@ -94,9 +94,9 @@ export default function PrivateAgentPage() {
     const beforeTaxMatch = content.match(/المبلغ قبل الضريبة[:\s]+([0-9,.]+)/i) || content.match(/Amount before tax[:\s]+([0-9,.]+)/i);
 
     // Extract table data - look for account numbers and amounts
-    const tableMatches = content.matchAll(/\|?\s*([0-9]{4})\s*\|?\s*([^|]+?)\s*\|?\s*([0-9,.\s]+)?\s*\|?\s*([0-9,.\s]+)?/g);
+    const tableMatches = Array.from(content.matchAll(/\|?\s*([0-9]{4})\s*\|?\s*([^|]+?)\s*\|?\s*([0-9,.\s]+)?\s*\|?\s*([0-9,.\s]+)?/g));
 
-    for (const match of tableMatches) {
+    tableMatches.forEach((match) => {
       const accountNumber = match[1]?.trim();
       const accountName = match[2]?.trim();
       const debit = match[3]?.trim().replace(/[,\s]/g, '') || '';
@@ -117,7 +117,7 @@ export default function PrivateAgentPage() {
           beforeTax: beforeTaxMatch ? beforeTaxMatch[1].replace(/,/g, '') : '',
         });
       }
-    }
+    });
 
     return entries;
   };
