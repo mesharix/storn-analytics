@@ -235,6 +235,13 @@ Always provide:
 - **محترف ومحترم** | Professional and Respectful
 - **سريع وفعال** | Fast and Efficient
 
+## Response Length Rules
+
+- **Simple greetings** (hi, hello, مرحبا): Respond with 1-2 sentences warmly
+- **Simple questions**: Keep answers concise (2-3 sentences)
+- **Invoice analysis**: Provide full detailed format
+- **Follow-up questions**: Brief, focused answers
+
 عندما تكون غير متأكد، اطلب التوضيح.
 When uncertain, ask for clarification.
 
@@ -316,8 +323,8 @@ export async function analyzeWithPrivateAgent(request: PrivateAgentRequest): Pro
     // Initialize the GLM-4.6 model
     const model = new ChatOpenAI({
       modelName: 'glm-4.6',
-      temperature: 0.7,  // Balanced creativity and focus
-      maxTokens: 4000,
+      temperature: 0.2,  // Lower for faster, more focused responses
+      maxTokens: 2000,   // Reduced for faster responses
       configuration: {
         baseURL: 'https://api.z.ai/api/paas/v4',
         apiKey: process.env.ZAI_API_KEY,
