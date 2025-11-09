@@ -489,11 +489,14 @@ ${request.question}
 `.trim();
 
       // Create content array with text and images for GLM-4V
+      // z.ai GLM-4V expects image_url as an object with 'url' property
       userMessageContent = [
         { type: 'text', text: textContent },
         ...request.data.images.map((img: string) => ({
           type: 'image_url',
-          image_url: img,  // z.ai expects just the URL string, not an object
+          image_url: {
+            url: img
+          }
         })),
       ];
     } else {
