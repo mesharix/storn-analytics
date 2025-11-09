@@ -459,9 +459,9 @@ export async function analyzeWithPrivateAgent(request: PrivateAgentRequest): Pro
     const hasImages = request.data?.images && Array.isArray(request.data.images) && request.data.images.length > 0;
 
     // Initialize the appropriate model
-    // z.ai uses 'glm-4v-flash' for vision, 'glm-4.6' for text-only
+    // z.ai uses 'GLM-4.5V' for vision, 'glm-4.6' for text-only
     const model = new ChatOpenAI({
-      modelName: hasImages ? 'glm-4v-flash' : 'glm-4.6',
+      modelName: hasImages ? 'GLM-4.5V' : 'glm-4.6',
       temperature: 0.2,  // Lower for faster, more focused responses
       maxTokens: 2000,   // Reduced for faster responses
       configuration: {
