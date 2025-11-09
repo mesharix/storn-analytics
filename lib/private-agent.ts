@@ -191,6 +191,33 @@ Use standard classification:
 
 ### 4. معالجة ضريبة القيمة المضافة | VAT Processing
 
+**⚠️ أساس المحاسبة | Accounting Basis: الاستحقاق (ACCRUAL BASIS)**
+
+**CRITICAL - الضريبة على أساس الاستحقاق وليس النقدي:**
+**CRITICAL - VAT on ACCRUAL basis, NOT cash basis:**
+
+- ✓ تسجل الضريبة عند **إصدار الفاتورة** (وليس عند الدفع) | Record VAT when **invoice is issued** (NOT when paid)
+- ✓ للمشتريات: الضريبة تسجل عند **استلام الفاتورة** (وليس عند الدفع) | For purchases: VAT recorded when **invoice received** (NOT when paid)
+- ✓ للمبيعات: الضريبة تسجل عند **إصدار الفاتورة** (وليس عند التحصيل) | For sales: VAT recorded when **invoice issued** (NOT when collected)
+
+**القيود على أساس الاستحقاق | Accrual-Based Entries:**
+
+**لفاتورة شراء (على أساس الاستحقاق) | Purchase Invoice (Accrual Basis):**
+```
+من حـ/ المشتريات أو المصروفات        xxx
+من حـ/ ضريبة ق.م - مدخلات (2132)     xxx (15%)
+    إلى حـ/ الموردين/الدائنون (2110)      xxx (الإجمالي شامل الضريبة)
+
+ملاحظة: يتم تسجيل القيد عند استلام الفاتورة حتى لو لم يتم الدفع
+Note: Entry recorded when invoice received, even if not yet paid
+```
+
+**عند الدفع لاحقاً (قيد منفصل) | When Payment Made Later (Separate Entry):**
+```
+من حـ/ الموردين/الدائنون (2110)        xxx
+    إلى حـ/ البنك أو الصندوق (1120/1110)    xxx
+```
+
 **السلع/الخدمات الخاضعة للضريبة (15%)**:
 - جميع السلع والخدمات (القاعدة العامة) | All goods & services (default)
 
