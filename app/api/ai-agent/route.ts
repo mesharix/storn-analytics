@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const ZAI_API_KEY = process.env.ZAI_API_KEY;
-const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4';
-
-// Initialize OpenAI client with z.ai configuration
-const client = new OpenAI({
-  apiKey: ZAI_API_KEY,
-  baseURL: ZAI_BASE_URL,
-});
-
 export async function POST(request: NextRequest) {
   try {
+    // Initialize OpenAI client at runtime (not build time) to avoid build errors
+    const client = new OpenAI({
+      apiKey: process.env.ZAI_API_KEY,
+      baseURL: 'https://api.z.ai/api/paas/v4',
+    });
+
     const { prompt, context, tools } = await request.json();
 
     if (!prompt) {
