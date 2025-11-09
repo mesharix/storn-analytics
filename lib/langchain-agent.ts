@@ -1,8 +1,9 @@
 // LangChain integration for GLM-4.6 AI Agent with Conversation Memory
 import { ChatOpenAI } from '@langchain/openai';
 import { BufferMemory } from 'langchain/memory';
-import { ConversationChain } from 'langchain/chains';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { LLMChain } from 'langchain/chains';
+import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
+import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 
 export interface LangChainRequest {
   prompt: string;
@@ -76,20 +77,27 @@ ${request.context ? `\n\nDataset Context:\n${JSON.stringify(request.context, nul
 
 Keep responses concise and focused on insights that matter.`;
 
-    // Create conversation chain with memory
-    const chain = new ConversationChain({
+    // Create prompt template
+    const chatPrompt = ChatPromptTemplate.fromMessages([
+      ['system', systemPrompt],
+      new MessagesPlaceholder('chat_history'),
+      ['human', '{input}'],
+    ]);
+
+    // Create LLM chain with memory
+    const chain = new LLMChain({
       llm: model,
+      prompt: chatPrompt,
       memory: memory,
     });
 
     // Run the chain with the user's question
     const response = await chain.call({
       input: request.prompt,
-      system: systemPrompt,
     });
 
     return {
-      content: response.response || 'No response from AI agent',
+      content: response.text || 'No response from AI agent',
     };
 
   } catch (error: any) {
