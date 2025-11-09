@@ -1,9 +1,6 @@
 // LangChain integration for GLM-4.6 AI Agent with Conversation Memory
 import { ChatOpenAI } from '@langchain/openai';
-import { BufferMemory } from 'langchain/memory';
-import { LLMChain } from 'langchain/chains';
-import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 
 export interface LangChainRequest {
   prompt: string;
@@ -17,19 +14,16 @@ export interface LangChainResponse {
 }
 
 // In-memory storage for conversation histories (use Redis in production)
-const conversationMemories = new Map<string, BufferMemory>();
+const conversationHistories = new Map<string, BaseMessage[]>();
 
 /**
- * Get or create conversation memory for a session
+ * Get or create conversation history for a session
  */
-function getConversationMemory(sessionId: string): BufferMemory {
-  if (!conversationMemories.has(sessionId)) {
-    conversationMemories.set(sessionId, new BufferMemory({
-      returnMessages: true,
-      memoryKey: 'chat_history',
-    }));
+function getConversationHistory(sessionId: string): BaseMessage[] {
+  if (!conversationHistories.has(sessionId)) {
+    conversationHistories.set(sessionId, []);
   }
-  return conversationMemories.get(sessionId)!;
+  return conversationHistories.get(sessionId)!;
 }
 
 /**
@@ -54,7 +48,7 @@ export async function analyzeWithLangChain(request: LangChainRequest): Promise<L
   try {
     const model = createGLMModel();
     const sessionId = request.sessionId || 'default';
-    const memory = getConversationMemory(sessionId);
+    const history = getConversationHistory(sessionId);
 
     // Create system prompt with dataset context
     const systemPrompt = `You are an expert data analysis AI agent built on GLM-4.6. You help users analyze datasets and extract meaningful insights.
@@ -77,27 +71,27 @@ ${request.context ? `\n\nDataset Context:\n${JSON.stringify(request.context, nul
 
 Keep responses concise and focused on insights that matter.`;
 
-    // Create prompt template
-    const chatPrompt = ChatPromptTemplate.fromMessages([
-      ['system', systemPrompt],
-      new MessagesPlaceholder('chat_history'),
-      ['human', '{input}'],
-    ]);
+    // Build messages array with conversation history
+    const messages: BaseMessage[] = [
+      new SystemMessage(systemPrompt),
+      ...history,
+      new HumanMessage(request.prompt),
+    ];
 
-    // Create LLM chain with memory
-    const chain = new LLMChain({
-      llm: model,
-      prompt: chatPrompt,
-      memory: memory,
-    });
+    // Call the model with conversation history
+    const response = await model.invoke(messages);
 
-    // Run the chain with the user's question
-    const response = await chain.call({
-      input: request.prompt,
-    });
+    // Add the user message and AI response to history
+    history.push(new HumanMessage(request.prompt));
+    history.push(new AIMessage(response.content as string));
+
+    // Keep only last 10 messages (5 exchanges) to prevent context overflow
+    if (history.length > 10) {
+      conversationHistories.set(sessionId, history.slice(-10));
+    }
 
     return {
-      content: response.text || 'No response from AI agent',
+      content: response.content as string || 'No response from AI agent',
     };
 
   } catch (error: any) {
@@ -113,22 +107,5 @@ Keep responses concise and focused on insights that matter.`;
  * Clear conversation memory for a session
  */
 export function clearConversationMemory(sessionId: string) {
-  conversationMemories.delete(sessionId);
-}
-
-/**
- * Get conversation history for a session
- */
-export async function getConversationHistory(sessionId: string): Promise<string[]> {
-  const memory = conversationMemories.get(sessionId);
-  if (!memory) return [];
-
-  try {
-    const history = await memory.loadMemoryVariables({});
-    const messages = history.chat_history || [];
-    return messages.map((msg: any) => msg.content);
-  } catch (error) {
-    console.error('Error loading conversation history:', error);
-    return [];
-  }
+  conversationHistories.delete(sessionId);
 }
