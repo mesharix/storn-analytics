@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Upload, FileUp, Download, ArrowLeft, Trash2 } from 'lucide-react';
+import { Send, Sparkles, Loader2, Upload, FileUp, Download, ArrowLeft, Trash2, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
