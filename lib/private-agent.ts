@@ -250,6 +250,16 @@ Your goal: Accurate accounting, full compliance, and user value.`;
 function formatDataForAgent(data: any): string {
   if (!data) return '';
 
+  // Handle image data specially
+  if (data.images && Array.isArray(data.images)) {
+    const imageInfo = `
+INVOICE IMAGES:
+- Total Images: ${data.imageCount || data.images.length}
+- Images are provided in base64 format below for analysis
+`;
+    return imageInfo;
+  }
+
   // Handle arrays
   if (Array.isArray(data)) {
     const itemCount = data.length;
@@ -325,26 +335,53 @@ export async function analyzeWithPrivateAgent(request: PrivateAgentRequest): Pro
     }
 
     // Build the complete input message
-    const userMessage = `
+    let userMessageContent: any;
+
+    // Check if we have images to process
+    if (request.data?.images && Array.isArray(request.data.images)) {
+      // Multi-modal message with images
+      const textContent = `
 ${request.context ? `CONTEXT:\n${request.context}\n\n` : ''}${formattedData}
 
 REQUEST:
 ${request.question}
 `.trim();
 
+      // Create content array with text and images
+      userMessageContent = [
+        { type: 'text', text: textContent },
+        ...request.data.images.map((img: string) => ({
+          type: 'image_url',
+          image_url: { url: img },
+        })),
+      ];
+    } else {
+      // Text-only message
+      userMessageContent = `
+${request.context ? `CONTEXT:\n${request.context}\n\n` : ''}${formattedData}
+
+REQUEST:
+${request.question}
+`.trim();
+    }
+
     // Create the message array
     const messages: BaseMessage[] = [
       new SystemMessage(SYSTEM_PROMPT),
       ...history,
-      new HumanMessage(userMessage),
+      new HumanMessage(userMessageContent),
     ];
 
     // Send to AI and get response
     const response = await model.invoke(messages);
     const aiResponse = response.content as string;
 
-    // Save to memory
-    history.push(new HumanMessage(userMessage));
+    // Save to memory (save simplified version for text-only history)
+    const historyMessage = typeof userMessageContent === 'string'
+      ? userMessageContent
+      : `[Invoice Analysis Request with ${request.data?.imageCount || 0} image(s)]`;
+
+    history.push(new HumanMessage(historyMessage));
     history.push(new AIMessage(aiResponse));
 
     // Keep only last 20 messages

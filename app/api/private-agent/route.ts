@@ -8,7 +8,7 @@ import { analyzeWithPrivateAgent, chatWithPrivateAgent } from '@/lib/private-age
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { data, question, context, sessionId } = body;
+    const { data, question, context, sessionId, images } = body;
 
     if (!question) {
       return NextResponse.json(
@@ -17,8 +17,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If images are provided, add them to the data
+    let requestData = data;
+    if (images && images.length > 0) {
+      requestData = {
+        ...(data || {}),
+        images,
+        imageCount: images.length,
+      };
+    }
+
     const result = await analyzeWithPrivateAgent({
-      data,
+      data: requestData,
       question,
       context,
       sessionId: sessionId || `session-${Date.now()}`,
