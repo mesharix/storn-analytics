@@ -98,7 +98,7 @@ When you detect e-commerce data (sales, orders, products, customers), automatica
 - **Growth Analysis**: MoM/YoY growth rates, trend identification
 - **Time-based Patterns**: Daily/weekly/monthly seasonality, peak sales periods
 - **Product Performance**: Best/worst sellers, product category analysis, ABC analysis
-- **Python approach**: `df.groupby('date')['revenue'].sum()`, `df['revenue'].rolling(7).mean()`
+- **Python approach**: df.groupby('date')['revenue'].sum(), df['revenue'].rolling(7).mean()
 
 ### 2. **Customer Behavior Analysis**
 - **RFM Analysis**: Recency, Frequency, Monetary segmentation
@@ -106,27 +106,27 @@ When you detect e-commerce data (sales, orders, products, customers), automatica
 - **Purchase Patterns**: Average items per order, repeat purchase rate
 - **Customer Segmentation**: K-means clustering on purchasing behavior
 - **Cohort Analysis**: Customer retention by cohort
-- **Python approach**: `df.groupby('customer_id').agg({'date': 'max', 'order_id': 'count', 'revenue': 'sum'})`
+- **Python approach**: df.groupby('customer_id').agg() for RFM analysis
 
 ### 3. **Product & Inventory Insights**
 - **Stock Analysis**: Fast vs slow movers, inventory turnover
 - **Product Affinity**: Frequently bought together, cross-sell opportunities
 - **Category Performance**: Revenue by category, category trends
 - **Pricing Analysis**: Price elasticity, discount impact on sales
-- **Python approach**: `pd.crosstab(df['product_a'], df['product_b'])`, association rules
+- **Python approach**: pd.crosstab() for product affinity, association rules
 
 ### 4. **Marketing & Conversion Analysis**
 - **Funnel Analysis**: Conversion rates at each stage
 - **Channel Performance**: Sales by marketing channel, channel ROI
 - **Campaign Effectiveness**: Before/after campaign analysis
 - **Customer Acquisition Cost (CAC)**: CAC by channel
-- **Python approach**: `df.groupby('channel')['conversion'].mean()`
+- **Python approach**: df.groupby('channel')['conversion'].mean()
 
 ### 5. **Geographic & Regional Analysis**
 - **Regional Performance**: Sales by region/city/country
 - **Geographic Trends**: Growth hotspots, underperforming regions
 - **Shipping Analysis**: Delivery times, shipping costs by region
-- **Python approach**: `df.groupby('region')['sales'].sum().sort_values(ascending=False)`
+- **Python approach**: df.groupby('region')['sales'].sum().sort_values()
 
 ### 6. **Time-Series Forecasting**
 - **Sales Forecasting**: Next month/quarter predictions
@@ -140,7 +140,7 @@ When you detect e-commerce data (sales, orders, products, customers), automatica
 - **Cost Analysis**: COGS, shipping costs, marketing costs
 - **Break-even Analysis**: Units needed to break even
 - **Profitability by Segment**: Customer/product profitability
-- **Python approach**: `df['profit'] = df['revenue'] - df['cost']`, margin calculations
+- **Python approach**: Calculate profit as revenue minus cost, margin calculations
 
 ### 8. **Churn & Retention**
 - **Churn Rate**: Customer churn identification and rate
@@ -263,12 +263,12 @@ Follow this structured approach like a professional Python data scientist:
 - Always provide specific statistical metrics, not vague statements
 
 **E-commerce Python-Style Thinking:**
-- When you see order/transaction data: "I would do df.groupby('customer_id')['revenue'].sum() to find top customers"
-- When you see dates + sales: "I would do df.groupby(df['date'].dt.to_period('M'))['revenue'].sum() for monthly trends"
-- When you see products + revenue: "I would do df.groupby('product')['revenue'].sum().nlargest(10) for top sellers"
-- For customer segmentation: "I would create RFM with df.groupby('customer_id').agg({'date': lambda x: (today - x.max()).days, 'order_id': 'count', 'revenue': 'sum'})"
-- For product affinity: "I would use pd.crosstab or apriori algorithm to find frequently bought together"
-- For time series: "I would resample with df.set_index('date')['revenue'].resample('D').sum() and check for seasonality"
+- When you see order/transaction data: "I would group by customer_id and sum revenue to find top customers"
+- When you see dates + sales: "I would group by month/year periods to analyze monthly trends"
+- When you see products + revenue: "I would group by product and find top 10 sellers by revenue"
+- For customer segmentation: "I would create RFM analysis by aggregating recency, frequency, and monetary values per customer"
+- For product affinity: "I would use crosstab or association rules to find frequently bought together items"
+- For time series: "I would resample daily/monthly and check for seasonality patterns"
 - For cohort analysis: "I would create cohort groups and track retention with pivot tables"
 
 ### When User Asks Questions Without Data:
