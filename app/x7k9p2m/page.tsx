@@ -80,6 +80,48 @@ export default function PrivateAgentPage() {
     // For now, we'll just count the invoices
   };
 
+  // Parse accounting entries from AI response
+  const parseJournalEntry = (content: string) => {
+    const entries: any[] = [];
+
+    // Extract invoice summary data
+    const invoiceNumberMatch = content.match(/رقم الفاتورة[:\s]+([^\n]+)/i) || content.match(/Invoice Number[:\s]+([^\n]+)/i);
+    const dateMatch = content.match(/التاريخ[:\s]+([^\n]+)/i) || content.match(/Date[:\s]+([0-9\-\/]+)/i);
+    const supplierMatch = content.match(/اسم المورد[:\s]+([^\n]+)/i) || content.match(/Supplier[:\s]+([^\n]+)/i);
+    const vatNumberMatch = content.match(/الرقم الضريبي[:\s]+([0-9\-]+)/i) || content.match(/VAT Number[:\s]+([0-9\-]+)/i);
+    const totalMatch = content.match(/الإجمالي[:\s]+([0-9,.]+)/i) || content.match(/Total[:\s]+([0-9,.]+)/i);
+    const vatAmountMatch = content.match(/ضريبة القيمة المضافة[:\s\(15%\)]+[:\s]+([0-9,.]+)/i) || content.match(/VAT[:\s\(15%\)]+[:\s]+([0-9,.]+)/i);
+    const beforeTaxMatch = content.match(/المبلغ قبل الضريبة[:\s]+([0-9,.]+)/i) || content.match(/Amount before tax[:\s]+([0-9,.]+)/i);
+
+    // Extract table data - look for account numbers and amounts
+    const tableMatches = content.matchAll(/\|?\s*([0-9]{4})\s*\|?\s*([^|]+?)\s*\|?\s*([0-9,.\s]+)?\s*\|?\s*([0-9,.\s]+)?/g);
+
+    for (const match of tableMatches) {
+      const accountNumber = match[1]?.trim();
+      const accountName = match[2]?.trim();
+      const debit = match[3]?.trim().replace(/[,\s]/g, '') || '';
+      const credit = match[4]?.trim().replace(/[,\s]/g, '') || '';
+
+      if (accountNumber && accountName && (debit || credit)) {
+        entries.push({
+          invoiceNumber: invoiceNumberMatch ? invoiceNumberMatch[1].trim() : '',
+          date: dateMatch ? dateMatch[1].trim() : '',
+          supplier: supplierMatch ? supplierMatch[1].trim() : '',
+          vatNumber: vatNumberMatch ? vatNumberMatch[1].trim() : '',
+          accountNumber,
+          accountName,
+          debit: debit ? parseFloat(debit) : 0,
+          credit: credit ? parseFloat(credit) : 0,
+          total: totalMatch ? totalMatch[1].replace(/,/g, '') : '',
+          vatAmount: vatAmountMatch ? vatAmountMatch[1].replace(/,/g, '') : '',
+          beforeTax: beforeTaxMatch ? beforeTaxMatch[1].replace(/,/g, '') : '',
+        });
+      }
+    }
+
+    return entries;
+  };
+
   // Download all journal entries as Excel
   const downloadJournalEntries = () => {
     if (processedInvoicesCount === 0) {
@@ -100,34 +142,124 @@ export default function PrivateAgentPage() {
         return;
       }
 
-      // Create summary sheet
-      const summaryData: any[][] = [
-        ['Journal Entries Export - قيود محاسبية'],
-        ['Generated Date: ' + new Date().toLocaleString()],
-        ['Total Invoices Processed: ' + processedInvoicesCount],
-        [],
-        ['All Journal Entries:'],
-        [],
-      ];
-
+      // Parse all entries
+      const allEntries: any[] = [];
       journalMessages.forEach((msg, index) => {
-        summaryData.push([`Invoice ${index + 1} - فاتورة ${index + 1}`]);
-        summaryData.push([]);
-
-        // Split content by lines and add to sheet
-        const lines = msg.content.split('\n');
-        lines.forEach((line) => {
-          summaryData.push([line]);
+        const entries = parseJournalEntry(msg.content);
+        entries.forEach(entry => {
+          allEntries.push({
+            ...entry,
+            invoiceIndex: index + 1,
+          });
         });
-
-        summaryData.push([]);
-        summaryData.push(['---']);
-        summaryData.push([]);
       });
 
-      const ws = XLSX.utils.aoa_to_sheet(summaryData);
-      ws['!cols'] = [{ wch: 120 }];
-      XLSX.utils.book_append_sheet(wb, ws, 'All Journal Entries');
+      if (allEntries.length === 0) {
+        alert('Could not parse journal entries. Please ensure the AI has generated proper accounting entries.');
+        return;
+      }
+
+      // Create main journal entries sheet with proper columns
+      const journalData: any[][] = [
+        ['القيود المحاسبية - Journal Entries'],
+        ['التاريخ | Date: ' + new Date().toLocaleString()],
+        ['عدد الفواتير | Total Invoices: ' + processedInvoicesCount],
+        [],
+        [
+          'رقم الفاتورة\nInvoice #',
+          'التاريخ\nDate',
+          'اسم المورد\nSupplier',
+          'الرقم الضريبي\nVAT Number',
+          'رقم الحساب\nAccount #',
+          'اسم الحساب\nAccount Name',
+          'مدين\nDebit',
+          'دائن\nCredit',
+          'المبلغ قبل الضريبة\nBefore Tax',
+          'ضريبة 15%\nVAT 15%',
+          'الإجمالي\nTotal',
+        ],
+      ];
+
+      allEntries.forEach((entry) => {
+        journalData.push([
+          entry.invoiceNumber,
+          entry.date,
+          entry.supplier,
+          entry.vatNumber,
+          entry.accountNumber,
+          entry.accountName,
+          entry.debit || '',
+          entry.credit || '',
+          entry.beforeTax,
+          entry.vatAmount,
+          entry.total,
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(journalData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 15 }, // Invoice #
+        { wch: 12 }, // Date
+        { wch: 25 }, // Supplier
+        { wch: 18 }, // VAT Number
+        { wch: 12 }, // Account #
+        { wch: 35 }, // Account Name
+        { wch: 15 }, // Debit
+        { wch: 15 }, // Credit
+        { wch: 15 }, // Before Tax
+        { wch: 15 }, // VAT
+        { wch: 15 }, // Total
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Journal Entries');
+
+      // Create summary sheet by invoice
+      const summaryData: any[][] = [
+        ['ملخص القيود حسب الفاتورة - Summary by Invoice'],
+        [],
+        ['رقم\n#', 'رقم الفاتورة\nInvoice', 'المورد\nSupplier', 'التاريخ\nDate', 'المبلغ قبل الضريبة\nBefore VAT', 'الضريبة 15%\nVAT', 'الإجمالي\nTotal'],
+      ];
+
+      const invoiceSummaries = new Map<string, any>();
+      allEntries.forEach((entry) => {
+        if (!invoiceSummaries.has(entry.invoiceNumber)) {
+          invoiceSummaries.set(entry.invoiceNumber, {
+            invoiceNumber: entry.invoiceNumber,
+            supplier: entry.supplier,
+            date: entry.date,
+            beforeTax: entry.beforeTax,
+            vatAmount: entry.vatAmount,
+            total: entry.total,
+            index: entry.invoiceIndex,
+          });
+        }
+      });
+
+      Array.from(invoiceSummaries.values()).forEach((inv) => {
+        summaryData.push([
+          inv.index,
+          inv.invoiceNumber,
+          inv.supplier,
+          inv.date,
+          inv.beforeTax,
+          inv.vatAmount,
+          inv.total,
+        ]);
+      });
+
+      const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+      summaryWs['!cols'] = [
+        { wch: 8 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 15 },
+      ];
+      XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
       // Download the file
       const filename = `journal_entries_${processedInvoicesCount}_invoices_${new Date().toISOString().split('T')[0]}.xlsx`;
