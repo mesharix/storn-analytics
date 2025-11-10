@@ -4,7 +4,7 @@
  */
 
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from 'langchain/schema';
+import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import { useMCPTool } from './mcp-client';
 
 // Same as your existing elite-data-agent.ts but enhanced
