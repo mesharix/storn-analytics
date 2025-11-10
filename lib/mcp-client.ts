@@ -5,7 +5,6 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { spawn } from 'child_process';
 
 export class MCPClient {
   private client: Client | null = null;
@@ -15,17 +14,10 @@ export class MCPClient {
    * Connect to MCP server
    */
   async connect() {
-    // Spawn the MCP server process
-    const serverProcess = spawn('node', [
-      '-r',
-      'ts-node/register',
-      './lib/mcp-server.ts',
-    ]);
-
-    // Create stdio transport
+    // Create stdio transport with command
     this.transport = new StdioClientTransport({
-      reader: serverProcess.stdout,
-      writer: serverProcess.stdin,
+      command: 'node',
+      args: ['-r', 'ts-node/register', './lib/mcp-server.ts'],
     });
 
     // Create client
