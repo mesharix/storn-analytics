@@ -47,7 +47,7 @@ export class MCPClient {
 
     const response = await this.client.request({
       method: 'tools/list',
-    }, {});
+    } as any, {} as any);
 
     return response.tools;
   }
@@ -66,7 +66,7 @@ export class MCPClient {
         name,
         arguments: args,
       },
-    }, {});
+    } as any, {} as any);
 
     // Extract text from response
     if (response.content && response.content[0]) {
